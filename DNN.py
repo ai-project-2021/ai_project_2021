@@ -36,7 +36,7 @@ class NN:
         self.n_in = len(self.X[0])    # 입력 데이터의 크기: 4
         # print('input 데이터의 크기: ', self.n_in)
 
-        self.n_hiddens = [200, 200]  # 각 은닉층의 뉴런 개수: 200, 200
+        self.n_hiddens = [250, 300]  # 각 은닉층의 뉴런 개수: 200, 200
         # print('각 은닉층의 뉴런 개수: ', self.n_hiddens)
 
         self.n_out = len(self.y)   # 출력 데이터의 개수: 150
@@ -105,7 +105,7 @@ class NN:
         # hidden layer만큼 Neural-Network 반복
         for i, input_dim in enumerate([self.n_in] + self.n_hiddens[:-1]):
             model.add(Dense(input_dim = input_dim, units = self.n_hiddens[i]))
-            model.add(Activation('relu'))   # activation: relu, sigmoid 등
+            model.add(Activation('relu'))   # activation: relu, sigmoid, softmax 등
             # model.add(kernel_initializer='random_normal')   # 가중치 초기화
             model.add(Dropout(self.p_keep))
 
@@ -125,7 +125,7 @@ n = NN()
 model = n.create_model()
 
 epochs = 50 # 최적값 찾기
-batch_size = 200    # 최적값 찾기
+batch_size = 600    # 최적값 찾기
 # 훈련 단계
 model.fit(n.X_train, n.Y_train, epochs=epochs)
 
