@@ -11,6 +11,51 @@ from tensorflow import keras
 # iris data import
 from sklearn.datasets import load_iris
 
+
+# 예측 모델 개발 절차
+# 1. 데이터 준비: __init__
+#         iris = load_iris()
+
+#         self.X = iris.data  # iris data input
+#         self.y = iris.target    # iris target(label)
+#         self.y_name = iris.target_names # iris target name
+
+#         # 데이터를 학습 데이터와 검증 데이터로 분류
+#         train_idx = np.array([i % 15 != 14 for i in range(self.y.shape[0])])
+#         test_idx = ~train_idx
+
+#         # 학습 데이터
+#         self.X_train = self.X[train_idx]
+#         self.Y_train = self.y[train_idx]
+
+#         # 검증 데이터
+#         self.X_test = self.X[test_idx]
+#         self.Y_test = self.y[test_idx]
+# 2. 모델 구축: create_model
+        # model = Sequential()
+        # model.add(BatchNormalization()) # 배치 정규화
+
+        # # hidden layer만큼 Neural-Network 반복
+        # for i, input_dim in enumerate([self.n_in] + self.n_hiddens[:-1]):
+        #     model.add(Dense(input_dim = input_dim, units = self.n_hiddens[i]))
+        #     model.add(Activation('relu'))   # activation: relu, sigmoid, softmax 등
+        #     # model.add(kernel_initializer='random_normal')   # 가중치 초기화
+        #     model.add(Dropout(self.p_keep))
+
+        # model.add(Dense(units = self.n_out))
+        # model.add(Activation(self.activation))
+# 3. 모델 컴파일: create_model
+#         model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+# 4. 모델 학습
+#         model.fit(n.X_train, n.Y_train, epochs=epochs)
+# 5. 모델 평가
+#         test_loss, test_accuracy = model.evaluate(n.X_test, n.Y_test, verbose=2)
+#         print('test loss : ', test_loss)
+#         print('test accuracy : ', test_accuracy)
+# 6. 예측
+
+
+
 class NN: 
 
     def __init__(self):
