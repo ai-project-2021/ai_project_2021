@@ -1,19 +1,53 @@
 import numpy as np
 import os
+
+from sklearn import metrics
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 from sklearn import datasets
+from keras import backend as K
 from keras.models import Sequential
 from keras.layers import Dense, Activation, Dropout, BatchNormalization
 from keras.optimizers import SGD
 from tensorflow.python.keras import activations
 from tensorflow import keras
+from sklearn.model_selection import train_test_split, cross_val_score, cross_val_predict
+from sklearn.preprocessing import MinMaxScaler,StandardScaler
 
 # macro_f1_score
-from sklearn.metrics import f1_score, confusion_matrix, classification_report
+from sklearn.metrics import f1_score, recall_score, precision_score
 
-# iris data import
-from sklearn.datasets import load_iris
+# loader.py 파일 import
+from utils.loader import get_fraud, get_raw_data
 
+def f1(y_true, y_pred):
+    def recall(y_true, y_pred):
+        """Recall metric.
+
+        Only computes a batch-wise average of recall.
+
+        Computes the recall, a metric for multi-label classification of
+        how many relevant items are selected.
+        """
+        true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+        possible_positives = K.sum(K.round(K.clip(y_true, 0, 1)))
+        recall = true_positives / (possible_positives + K.epsilon())
+        return recall
+
+    def precision(y_true, y_pred):
+        """Precision metric.
+
+        Only computes a batch-wise average of precision.
+
+        Computes the precision, a metric for multi-label classification of
+        how many selected items are relevant.
+        """
+        true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+        predicted_positives = K.sum(K.round(K.clip(y_pred, 0, 1)))
+        precision = true_positives / (predicted_positives + K.epsilon())
+        return precision
+    precision = precision(y_true, y_pred)
+    recall = recall(y_true, y_pred)
+    return 2*((precision*recall)/(precision+recall+K.epsilon()))
 
 # 예측 모델 개발 절차
 # 1. 데이터 준비: __init__
@@ -62,38 +96,22 @@ from sklearn.datasets import load_iris
 class NN: 
 
     def __init__(self):
-        iris = load_iris()
+        self.X, self.y = get_fraud()
 
-        self.X = iris.data  # iris data input
-        self.y = iris.target    # iris target(label)
-        self.y_name = iris.target_names # iris target name
+        # 전체 데이터의 수: 5643개(4513+1130)
+        self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(self.X, self.y, test_size=0.2, random_state=42) # 학습 데이터: 80%, 검증 데이터: 20%
 
-        self.X = self.X[self.y != 2]
-        self.y = self.y[self.y != 2]
-        
-        # 데이터를 학습 데이터와 검증 데이터로 분류
-        train_idx = np.array([i % 10 != 9 for i in range(self.y.shape[0])])
-        test_idx = ~train_idx
+        sc = StandardScaler()
+        self.X_train=sc.fit_transform(self.X_train)
+        self.X_test=sc.fit_transform(self.X_test)
 
-        # 학습 데이터
-        self.X_train = self.X[train_idx]
-        self.Y_train = self.y[train_idx]
-        print(type(self.X_train[0][1]))
-        print(self.Y_train)
-
-        # 검증 데이터
-        self.X_test = self.X[test_idx]
-        self.Y_test = self.y[test_idx]
-        print(type(self.Y_test[0]))
-    
-
-        self.n_in = len(self.X[0])    # 입력 데이터의 크기: 4
+        self.n_in = 41    # 입력 데이터의 크기: 41 columns
         # print('input 데이터의 크기: ', self.n_in)
 
         self.n_hiddens = [250, 300]  # 각 은닉층의 뉴런 개수: 200, 200
         # print('각 은닉층의 뉴런 개수: ', self.n_hiddens)
 
-        self.n_out = 1   # 출력 데이터의 개수: 150
+        self.n_out = 1   # 출력 데이터의 개수: 1개(0 또는 1)
         # print('output 데이터의 개수', self.n_out)
 
         self.activation = 'relu'
@@ -119,7 +137,8 @@ class NN:
         #         keras.layers.Dense(self.n_in, activation='softmax')
         # ])
 
-        model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+        model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy', f1])
+        # model.compile(optimizer='sgd', loss='binary_crossentropy', metrics=[keras.metrics.Precision(), keras.metrics.Recall()])
         return model
 
 #     # Simple-Neural-Network
@@ -180,17 +199,18 @@ if __name__ == "__main__" :
 
     model = n.create_model()
 
-    epochs = 50 # 최적값 찾기
+    epochs = 1 
 
     # 훈련 단계
-    model.fit(n.X_train, n.Y_train, epochs=epochs)
+    model.fit(n.X_train, n.y_train, epochs=epochs)
 
     # 정확도 평가 단계
-    test_loss, test_accuracy = model.evaluate(n.X_test, n.Y_test, verbose=2)
-    print(model.predict(n.X_test))
-    print('test loss : ', test_loss)
-    print('test accuracy : ', test_accuracy)
+    test_evaluate = model.evaluate(n.X_test, n.y_test, verbose=2)
 
-    # for i in n.Y_test:
-    #     for j in n.Y_train:
-    #         f1_score(n.Y_test[i], n.Y_train[j], average='macro')
+    print(model.predict(n.X_test))
+
+    # print('test evaluate : ', test_evaluate)
+    print('test loss : ', test_evaluate[0])
+    print('test accuracy : ', test_evaluate[1])
+    print('test f1 : ', test_evaluate[2])
+
