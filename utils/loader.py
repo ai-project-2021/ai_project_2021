@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from sklearn.preprocessing import LabelEncoder
 
+DEBUG = True
 
 def get_raw_data():
     dataset = pd.read_csv(
@@ -47,8 +48,42 @@ def get_product_recommend():
         "Order Item Total",
         "Product Name",
     ]
+    
+    dataset = data[cols]
+    
+    if DEBUG : 
+        print(data[cols].nunique()) # each column's unique value == unique().shape[0]
+        print(data["Customer Id"].nunique())
+        print("\n")
 
-    return data[cols]
+    return dataset
+
+def get_rfm_data(customer_data) : 
+    customer_data["order date (DateOrders)"] = pd.to_datetime(customer_data["order date (DateOrders)"])
+
+    customer_data = customer_data.rename(columns = {"TotalPrice" : "M_Value"})
+
+    tmp = customer_data.groupby("Customer Id")["order date (DateOrders)"].max().reset_index()
+    tmp = tmp.rename(columns={"order date (DateOrders)":"R_Value"})
+
+    tmp2 = customer_data.groupby("Customer Id")["Order Id"].count().reset_index()
+    tmp2 = tmp2.rename(columns={"Order Id": "F_Value"})
+
+    # index를 기준으로 data의 모든 column의 값을 보여줌.
+    customer_data.drop(["Order Id", "order date (DateOrders)", "Order Item Quantity", "Order Item Total", "Product Name"], axis =1, inplace = True)
+
+    rfm = pd.merge(tmp, tmp2, on = "Customer Id", how = "left")
+    rfm = pd.merge(rfm, customer_data, on = "Customer Id", how = "left")
+    
+    if DEBUG : 
+        print("RFM\n", rfm)
+
+    time = rfm["R_Value"] - pd.to_datetime("20141231") # 가장 이른 날인 2015.01.01보다 이른 날짜를 기준으로 사용
+
+    # Timedelta의 attribute인 total_seconds() : time을 초 단위로 바꾸어 줌
+    rfm["R_Value"] = [int(x.total_seconds()/(10**4)) for x in time]
+
+    return rfm
 
 
 def get_fraud():
