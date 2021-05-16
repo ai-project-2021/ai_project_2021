@@ -8,6 +8,9 @@ from keras.optimizers import SGD
 from tensorflow.python.keras import activations
 from tensorflow import keras
 
+# macro_f1_score
+from sklearn.metrics import f1_score, confusion_matrix, classification_report
+
 # iris data import
 from sklearn.datasets import load_iris
 
@@ -65,17 +68,23 @@ class NN:
         self.y = iris.target    # iris target(label)
         self.y_name = iris.target_names # iris target name
 
+        self.X = self.X[self.y != 2]
+        self.y = self.y[self.y != 2]
+        
         # 데이터를 학습 데이터와 검증 데이터로 분류
-        train_idx = np.array([i % 15 != 14 for i in range(self.y.shape[0])])
+        train_idx = np.array([i % 10 != 9 for i in range(self.y.shape[0])])
         test_idx = ~train_idx
 
         # 학습 데이터
         self.X_train = self.X[train_idx]
         self.Y_train = self.y[train_idx]
+        print(type(self.X_train[0][1]))
+        print(self.Y_train)
 
         # 검증 데이터
         self.X_test = self.X[test_idx]
         self.Y_test = self.y[test_idx]
+        print(type(self.Y_test[0]))
     
 
         self.n_in = len(self.X[0])    # 입력 데이터의 크기: 4
@@ -84,11 +93,34 @@ class NN:
         self.n_hiddens = [250, 300]  # 각 은닉층의 뉴런 개수: 200, 200
         # print('각 은닉층의 뉴런 개수: ', self.n_hiddens)
 
-        self.n_out = len(self.y)   # 출력 데이터의 개수: 150
+        self.n_out = 1   # 출력 데이터의 개수: 150
         # print('output 데이터의 개수', self.n_out)
 
         self.activation = 'relu'
         self.p_keep = 0.5    # dropout 확률의 비율
+
+    # DNN 수행
+    def create_model(self):
+        model = Sequential()
+        model.add(BatchNormalization()) # 배치 정규화
+
+        # hidden layer만큼 Neural-Network 반복
+        for i, input_dim in enumerate([self.n_in] + self.n_hiddens[:-1]):
+            model.add(Dense(input_dim = input_dim, units = self.n_hiddens[i], kernel_initializer='random_uniform'))
+            model.add(Activation('relu'))   # activation: relu, sigmoid, softmax 등
+            # model.add()   # 가중치 초기화
+            model.add(Dropout(self.p_keep))
+
+        model.add(Dense(units = self.n_out))
+        model.add(Activation(self.activation))
+        # model = keras.Sequential([
+        #     for i, input_dim in enumerate([self.n_in] + self.n_hiddens[:-1]):
+        #         keras.layers.Dense(input_dim=input_dim, activation='relu'),
+        #         keras.layers.Dense(self.n_in, activation='softmax')
+        # ])
+
+        model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+        return model
 
 #     # Simple-Neural-Network
 #     def simpleDNN(self):
@@ -142,39 +174,23 @@ class NN:
 
 # model = NN().DNN()
 
-    # DNN 수행
-    def create_model(self):
-        model = Sequential()
-        model.add(BatchNormalization()) # 배치 정규화
+if __name__ == "__main__" :
+    
+    n = NN()
 
-        # hidden layer만큼 Neural-Network 반복
-        for i, input_dim in enumerate([self.n_in] + self.n_hiddens[:-1]):
-            model.add(Dense(input_dim = input_dim, units = self.n_hiddens[i]))
-            model.add(Activation('relu'))   # activation: relu, sigmoid, softmax 등
-            # model.add(kernel_initializer='random_normal')   # 가중치 초기화
-            model.add(Dropout(self.p_keep))
+    model = n.create_model()
 
-        model.add(Dense(units = self.n_out))
-        model.add(Activation(self.activation))
-        # model = keras.Sequential([
-        #     for i, input_dim in enumerate([self.n_in] + self.n_hiddens[:-1]):
-        #         keras.layers.Dense(input_dim=input_dim, activation='relu'),
-        #         keras.layers.Dense(self.n_in, activation='softmax')
-        # ])
+    epochs = 50 # 최적값 찾기
 
-        model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
-        return model
+    # 훈련 단계
+    model.fit(n.X_train, n.Y_train, epochs=epochs)
 
-n = NN()
+    # 정확도 평가 단계
+    test_loss, test_accuracy = model.evaluate(n.X_test, n.Y_test, verbose=2)
+    print(model.predict(n.X_test))
+    print('test loss : ', test_loss)
+    print('test accuracy : ', test_accuracy)
 
-model = n.create_model()
-
-epochs = 50 # 최적값 찾기
-batch_size = 600    # 최적값 찾기
-# 훈련 단계
-model.fit(n.X_train, n.Y_train, epochs=epochs)
-
-# 정확도 평가 단계
-test_loss, test_accuracy = model.evaluate(n.X_test, n.Y_test, verbose=2)
-print('test loss : ', test_loss)
-print('test accuracy : ', test_accuracy)
+    # for i in n.Y_test:
+    #     for j in n.Y_train:
+    #         f1_score(n.Y_test[i], n.Y_train[j], average='macro')
