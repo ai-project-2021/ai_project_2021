@@ -60,6 +60,7 @@ def get_product_recommend():
 
 def get_rfm_data(customer_data) : 
     customer_data["order date (DateOrders)"] = pd.to_datetime(customer_data["order date (DateOrders)"])
+    customer_data["M_Value"] = customer_data["Order Item Quantity"] * customer_data["Order Item Total"]
 
     customer_data = customer_data.rename(columns = {"TotalPrice" : "M_Value"})
 
@@ -69,11 +70,14 @@ def get_rfm_data(customer_data) :
     tmp2 = customer_data.groupby("Customer Id")["Order Id"].count().reset_index()
     tmp2 = tmp2.rename(columns={"Order Id": "F_Value"})
 
+    tmp3 = customer_data.groupby("Customer Id")["M_Value"].sum().reset_index()
+
+
     # index를 기준으로 data의 모든 column의 값을 보여줌.
     customer_data.drop(["Order Id", "order date (DateOrders)", "Order Item Quantity", "Order Item Total", "Product Name"], axis =1, inplace = True)
 
     rfm = pd.merge(tmp, tmp2, on = "Customer Id", how = "left")
-    rfm = pd.merge(rfm, customer_data, on = "Customer Id", how = "left")
+    rfm = pd.merge(rfm, tmp3, on = "Customer Id", how = "left")
     
     if DEBUG : 
         print("RFM\n", rfm)
@@ -129,3 +133,6 @@ def get_fraud():
     data["Customer Full Name"] = le.fit_transform(data["Customer Full Name"])
 
     return data.loc[:, data.columns != "fraud"], data["fraud"]
+
+if __name__ == "__main__" : 
+    get_rfm_data(get_product_recommend())
