@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import LabelEncoder
+from imblearn.over_sampling import RandomOverSampler
 
 DEBUG = True
 
@@ -128,4 +129,7 @@ def get_fraud():
     data["Order Country"] = le.fit_transform(data["Order Country"])
     data["Customer Full Name"] = le.fit_transform(data["Customer Full Name"])
 
-    return data.loc[:, data.columns != "fraud"], data["fraud"]
+    ros = RandomOverSampler(random_state=42)
+    return ros.fit_resample(data.loc[:, data.columns != "fraud"], data["fraud"])
+
+    # return data.loc[:, data.columns != "fraud"], data["fraud"]

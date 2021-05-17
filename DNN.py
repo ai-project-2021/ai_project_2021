@@ -18,7 +18,7 @@ from sklearn.utils import class_weight
 from sklearn.metrics import f1_score, recall_score, precision_score
 
 # loader.py 파일 import
-from utils.loader import get_fraud, get_raw_data
+from utils.loader import get_fraud
 
 def f1(y_true, y_pred):
     def recall(y_true, y_pred):
@@ -55,14 +55,12 @@ class NN:
     def __init__(self):
         self.X, self.y = get_fraud()
         
-
         # 전체 데이터의 수: 5643개(4513+1130)
         self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(self.X, self.y, test_size=0.2, random_state=42, stratify=self.y) # 학습 데이터: 80%, 검증 데이터: 20%
 
         sc = StandardScaler()
         self.X_train=sc.fit_transform(self.X_train)
         self.X_test=sc.fit_transform(self.X_test)
-
 
         self.n_in = 41    # 입력 데이터의 크기: 41 columns
         # print('input 데이터의 크기: ', self.n_in)
@@ -102,7 +100,7 @@ if __name__ == "__main__" :
     model = n.create_model()
 
     epochs = 1 
-    class_weights = {1: 0.5, 0:0.5}
+    class_weights = {1: 0.5, 0: 0.5}
 
     # 훈련 단계
     model.fit(n.X_train, n.y_train, epochs=epochs, class_weight=class_weights)
@@ -112,9 +110,9 @@ if __name__ == "__main__" :
 
     print(model.predict(n.X_test))
 
-    n.y = model.predict(n.X_test).reshape(-1)
-    print(n.y[n.y == 0].shape[0])
-    print(n.y[n.y == 1].shape[0])
+    # n.y = model.predict(n.X_test).reshape(-1)
+    # print(n.X[n.X == 0].shape[0])
+    # print(n.X[n.X == 1].shape[0])
 
     # print('test evaluate : ', test_evaluate)
     print('test loss : ', test_evaluate[0])
