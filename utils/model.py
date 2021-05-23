@@ -1,5 +1,6 @@
 import keras
 import os
+import plotly.express as px
 
 
 def save_model(_path, model):
@@ -17,3 +18,8 @@ def load_model(_path):
     else:
         print("존재하지 않는 파일입니다.")
         return -1
+
+
+def rfm_plot(X, y):
+    fig = px.scatter_3d(X, x="R_Value", y="F_Value", z="M_Value", color=y)
+    fig.show()
