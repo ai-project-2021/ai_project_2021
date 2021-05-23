@@ -19,17 +19,17 @@ class DTClassifier:
         # self.params.train_size = kwargs.get("train_size", None)
         # self.params.test_size = kwargs.get("test_size", None)
 
-        self.data = kwargs.get("data", None)
+        # self.data = kwargs.get("data", None)
         self.get_data()
 
         self.model_params = dict()
-        self.model_params.max_depth = None
-        self.model_params.min_samples_leaf = 1
-        self.model_params.min_samples_split = 2
-        self.model_params.max_features = "auto"
-        self.model_params.random_state = 123456
-        self.model_params.criterion = "entropy"
-        self.model_params.class_weight = "balanced"
+        self.model_params["max_depth"] = None
+        self.model_params["min_samples_leaf"] = 1
+        self.model_params["min_samples_split"] = 2
+        self.model_params["max_features"] = "auto"
+        self.model_params["random_state"] = 123456
+        self.model_params["criterion"] = "entropy"
+        self.model_params["class_weight"] = "balanced"
 
         self.clf = DecisionTreeClassifier(
             **self.model_params,
@@ -74,10 +74,9 @@ class DTClassifier:
     def gridSearch(self):
         f1 = make_scorer(f1_score, average="macro")
         self.param_grid = {
-            "n_estimators": [10, 50, 100],
-            "max_depth": [4, 6, 8, 10],
-            "min_samples_leaf": [8, 12, 18],
-            "min_samples_split": [8, 16, 20],
+            "max_depth": [4, 6, 8, 10, 12, 15],
+            "min_samples_leaf": [8, 12, 18, 24, 40],
+            "min_samples_split": [8, 16, 20, 30, 40, 50],
         }
 
         self.grid_clf = GridSearchCV(self.clf, self.param_grid, cv=3, scoring=f1)
@@ -106,6 +105,13 @@ class DTClassifier:
 
 if __name__ == "__main__":
     model = DTClassifier()
+    # print(model.gridSearch())
     print(model.train())
     print(model.test())
     print(classification_report(model.y_test, model.predict(model.X_test)))
+
+    print(
+        pd.DataFrame(
+            confusion_matrix(model.y_test, model.predict(model.X_test)),
+        )
+    )

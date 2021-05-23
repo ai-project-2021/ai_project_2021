@@ -23,11 +23,11 @@ class RFClassifier:
         self.get_data()
 
         self.model_params = dict()
-        self.model_params["n_estimators"] = 10
+        self.model_params["n_estimators"] = 20
         self.model_params["oob_score"] = False
-        self.model_params["max_depth"] = 10
-        self.model_params["min_samples_leaf"] = 18
-        self.model_params["min_samples_split"] = 8
+        self.model_params["max_depth"] = None
+        self.model_params["min_samples_leaf"] = 1
+        self.model_params["min_samples_split"] = 2
         self.model_params["max_features"] = "auto"
         self.model_params["random_state"] = 123456
         self.model_params["criterion"] = "entropy"
@@ -113,3 +113,4 @@ if __name__ == "__main__":
     print(model.train())
     print(model.test())
     print(classification_report(model.y_test, model.predict(model.X_test)))
+    print(confusion_matrix(model.y_test, model.predict(model.X_test)))
