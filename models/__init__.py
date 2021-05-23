@@ -1,5 +1,5 @@
 from .rf import RFClassifier
 from .dt import DTClassifier
-from .kmeans import Kmeans
+from .kcentriod import KMeans, KMedians, KMedoids
 
-all = ["RFClassifier", "DTClassifier", "Kmeans"]
+all = ["RFClassifier", "DTClassifier", "KMeans", "KMedians", "KMedoids"]
