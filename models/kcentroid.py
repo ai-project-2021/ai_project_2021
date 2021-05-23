@@ -99,3 +99,20 @@ if __name__ == "__main__":
     # model = Kmeans(k=3)
     dataset = get_rfm_data(get_product_recommend())[["R_Value", "F_Value", "M_Value"]]
     kmedians, kmedians_assignments = KMedians(k=3).fit(dataset.values)
+    model = KMedoids(k=3, max_iters=100)
+
+    # print("\nFitting Kmedoids.")
+    final_assignments, final_medoid_ids = model.fit(dataset.values)
+
+    # kmeans, kmeans_assignments = KMeans(k=3).fit(dataset.values)
+
+    # mismatch = np.zeros((3, 3))
+    # for i, m in zip(kmedians_assignments, kmeans_assignments):
+    #     mismatch[i, m] += 1
+    # print(mismatch)
+    # clu, c, labels = model.fit(dataset.values)
+    # print(model.inertia_)
+
+    # fig = px.scatter_3d(dataset, x="R_Value", y="F_Value", z="M_Value", color=labels)
+
+    # fig.show()
