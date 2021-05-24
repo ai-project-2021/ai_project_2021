@@ -17,6 +17,7 @@ from sklearn.utils import class_weight
 from sklearn.metrics import confusion_matrix
 from keras.callbacks import EarlyStopping
 from sklearn.metrics import classification_report
+from keras.models import load_model
 
 # macro_f1_score
 from sklearn.metrics import f1_score, recall_score, precision_score
@@ -113,16 +114,17 @@ if __name__ == "__main__" :
     class_weights = {1: 0.9, 0: 0.1}
     callbacks = EarlyStopping(monitor='f1', patience=50, verbose=1)
 
+    
+    # reconstructed_model = keras.models.load_model("my_model.h5")
+
+    # np.testing.assert_allclose(
+    #     model.predict(n.X_test), reconstructed_model.predict(n.X_test)
+    # )
+
     # # 훈련 단계
-    # model.fit(n.X_train, n.y_train, batch_size=batch_size, epochs=epochs, callbacks=callbacks, class_weight=class_weights, verbose=1)
-
-    model.save("my_model.h5")
-    reconstructed_model = keras.models.load_model("my_model.h5")
-
-    np.testing.assert_allclose(
-        model.predict(n.X_test), reconstructed_model.predict(n.X_test)
-    )
-
+    model.fit(n.X_train, n.y_train, batch_size=batch_size, epochs=epochs, callbacks=callbacks, class_weight=class_weights, verbose=1)
+    # model.fit(n.X_test, n.y_test, batch_size=batch_size, epochs=epochs, callbacks=callbacks, class_weight=class_weights, verbose=1)
+    
     # 정확도 평가 단계
     # train_evaluate = model.evaluate(n.X_train, n.y_train)
     test_evaluate = model.evaluate(n.X_test, n.y_test)
@@ -134,8 +136,9 @@ if __name__ == "__main__" :
     y_pred = model.predict(n.X_test)
     # y_pred = np.argmax(y_pred1, axis = 1)
     # print(y_pred1)
-    cm = confusion_matrix(model.y_test, y_pred.round())
+    cm = confusion_matrix(n.y_test, y_pred.round())
 
+    model.save("my_model.h5")
     # print('test evaluate : ', test_evaluate)
     print('test loss : ', test_evaluate[0])
     print('test accuracy : ', test_evaluate[1])
