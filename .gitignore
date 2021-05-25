@@ -1,3 +1,6 @@
+# Custom
+*.png
+
 # Dev
 .DS_Store
 .vscode/
