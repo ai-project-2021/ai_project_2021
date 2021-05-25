@@ -50,7 +50,7 @@ class KMedians(KMeans):
 
 
 class KMedoids:
-    def __init__(self, k, max_iters):
+    def __init__(self, k, max_iters=500):
         self.k = k
         self.max_iters = max_iters
 
@@ -78,6 +78,8 @@ class KMedoids:
         self.batch_size = datas.shape[0] // 10
         medoids = np.random.choice(self.datas.shape[0], self.k, replace=False)
         prev_labels = self._update(medoids)
+        best_diffs = 1e10
+        best_steps_ = -1
 
         for i in range(self.max_iters):
             medoids = self.find_medoids(prev_labels)
@@ -89,10 +91,16 @@ class KMedoids:
             print("iteration {:2d}: {:.6%}p of points got reassigned." "".format(i, diffs))
 
             if diffs < 0.01:
+                self.medoids_ = medoids
+                self.labels_ = prev_labels
+                break
+            elif best_diffs > diffs:
+                self.medoids_ = medoids
+                self.labels_ = prev_labels
+                best_steps_ = i
+            elif i - best_steps_ > (self.max_iters // 10):
                 break
 
-        self.medoids_ = medoids
-        self.labels_ = prev_labels
         self.inertia_ = inertia(datas, self.labels_, self.medoids_)
 
         return self
