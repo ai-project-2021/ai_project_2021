@@ -44,6 +44,10 @@ class KMedians(KMeans):
         super().__init__(k=k)
         self.f = np.median
 
+    def _update(self):
+        _clu = lambda c: np.array(np.sum(abs(self.datas - c), axis=1))
+        return np.eye(self.k)[np.array([_clu(c) for c in self.centriod_]).argmin(axis=0)]
+
 
 class KMedoids:
     def __init__(self, k, max_iters):
