@@ -14,13 +14,9 @@ from utils import get_fraud
 class RFClassifier:
     def __init__(self, **kwargs):
         self.params = dict()
-        # self.params.load_path = kwargs.get("load_path", None)
-        # self.params.save_path = kwargs.get("save_path", None)
-        # self.params.train_size = kwargs.get("train_size", None)
-        # self.params.test_size = kwargs.get("test_size", None)
-
-        self.data = kwargs.get("data", None)
-        self.get_data()
+        X, y = kwargs.get("X", None), kwargs.get("y", None)
+        self.params["test_size"] = kwargs.get("test_size", 0.2)
+        self.get_data(X, y)
 
         self.model_params = dict()
         self.model_params["n_estimators"] = 20
@@ -46,13 +42,11 @@ class RFClassifier:
         with open(_path, "w") as f:
             json.dump(dict(self.params, **self.model_params), f)
 
-    def get_data(self):
-        X, y = get_fraud()
-        print(y[y == 0].shape, y[y == 1].shape)
+    def get_data(self, X, y):
         self.features_names = X.columns
 
         self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(
-            X.values, y.values, test_size=0.2, stratify=y, random_state=123456
+            X.values, y.values, test_size=self.params["test_size"], stratify=y, random_state=123456
         )
 
     def train(self):
@@ -88,7 +82,7 @@ class RFClassifier:
         self.grid_clf.fit(self.X_train, self.y_train)
         return (
             self.grid_clf.best_params_,
-            # self.grid_clf.cv_results_,
+            self.grid_clf.best_estimator_,
         )
 
     def result(self):
@@ -109,7 +103,8 @@ class RFClassifier:
 
 
 if __name__ == "__main__":
-    model = RFClassifier()
+    X, y = get_fraud()
+    model = RFClassifier(X=X, y=y)
     print(model.train())
     print(model.test())
     print(classification_report(model.y_test, model.predict(model.X_test)))

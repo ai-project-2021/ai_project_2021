@@ -16,10 +16,7 @@ class DTClassifier:
         self.params = dict()
         X, y = kwargs.get("X", None), kwargs.get("y", None)
         self.get_data(X, y)
-        # self.params.train_size = kwargs.get("train_size", None)
-        # self.params.test_size = kwargs.get("test_size", None)
-
-        # self.data = kwargs.get("data", None)
+        self.params["test_size"] = kwargs.get("test_size", 0.2)
 
         self.model_params = dict()
         self.model_params["max_depth"] = 8
@@ -52,7 +49,7 @@ class DTClassifier:
         self.features_names = X.columns
 
         self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(
-            X, y, test_size=0.2, stratify=y, random_state=123456
+            X, y, test_size=self.params["test_size"], stratify=y, random_state=123456
         )
 
     def train(self):
