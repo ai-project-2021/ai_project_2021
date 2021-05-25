@@ -1,6 +1,7 @@
 import numpy as np
 from utils import get_product_recommend, get_rfm_data
 from utils.metrics import inertia
+import argparse
 
 
 class KMeans:
@@ -9,8 +10,8 @@ class KMeans:
         self.f = np.mean
 
     def _update(self):
-        _clu = lambda r: np.array([np.sum((c - r) ** 2) ** 0.5 for c in self.centriod_]).argmin()
-        return np.array([[1 if _clu(row) == j else 0 for j in range(self.k)] for row in self.datas])
+        _clu = lambda r: np.array(np.sum((self.centriod_ - r) ** 2, axis=1) ** 0.5).argmin()
+        return np.eye(self.k)[np.array([_clu(row) for row in self.datas])]
 
     def fit(self, datas):
         self.datas = datas
@@ -97,7 +98,24 @@ class KMedoids:
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="K-Centriod Arguments")
+    parser.add_argument("--models", "-m", type=str, action="append", help="K-Centriod Method Type")
+    parser.add_argument("--n_clusters", "-k", type=int, action="append")
+    args = parser.parse_args()
+
     dataset = get_rfm_data(get_product_recommend())[["R_Value", "F_Value", "M_Value"]]
-    for k in range(2, 10):
-        model_ = KMeans(k=k).fit(dataset.values)
-        print(model_.inertia_)
+    model_dict = {"KMeans": KMeans, "KMedians": KMedians, "KMedoids": KMedoids}
+    import time
+
+    s = time.time()
+    for model_ in args.models:
+        model = model_dict[model_](args.n_clusters[0])
+        for k in args.n_clusters:
+            e = time.time()
+            model.k = k
+            print(
+                "K : {}, Current : {}, Accumulation : {}".format(
+                    k, time.time() - e, time.time() - s
+                )
+            )
+            print(model.fit(dataset.values).inertia_)
