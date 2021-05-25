@@ -98,3 +98,6 @@ class KMedoids:
 
 if __name__ == "__main__":
     dataset = get_rfm_data(get_product_recommend())[["R_Value", "F_Value", "M_Value"]]
+    for k in range(2, 10):
+        model_ = KMeans(k=k).fit(dataset.values)
+        print(model_.inertia_)
