@@ -150,7 +150,7 @@ class CURE:
         return self
 
     def fit_predict(self, data):
-        return self.fit(data).labels
+        return self.fit(data).labels_
 
 
 if __name__ == "__main__":

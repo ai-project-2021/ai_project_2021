@@ -84,7 +84,7 @@ if __name__ == "__main__":
         elbow.append(model.fit(dataset.values).inertia_)
         silhouette_avg = silhouette_score(dataset.values, model.labels_)
         print(
-            "K : {}, Inertia : {}, Avg. Silhouette_Score : {}. RMSE : {}".format(k, elbow[-1], silhouette_avg, np.sqrt(((model.labels_, model.))))
+            "K : {}, Inertia : {}, Avg. Silhouette_Score : {}".format(k, elbow[-1], silhouette_avg)
         )
 
     plt.figure()
