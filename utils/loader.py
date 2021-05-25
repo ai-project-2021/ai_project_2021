@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import LabelEncoder
-from imblearn.over_sampling import RandomOverSampler
+from imblearn.over_sampling import RandomOverSampler, SMOTE
 import datetime as dt
 
 
@@ -176,7 +176,7 @@ def get_rfm_data(customer_data):
     return rfm
 
 
-def get_fraud():
+def get_fraud(sampling=None):
     data = get_raw_data()
     data["TotalPrice"] = data["Order Item Quantity"] * data["Order Item Total"]
     data["fraud"] = np.where(data["Order Status"] == "SUSPECTED_FRAUD", 1, 0)
@@ -214,9 +214,16 @@ def get_fraud():
     # data["order_week_day"] = le.fit_transform(data["order_week_day"])
     data["Order Country"] = le.fit_transform(data["Order Country"])
     data["Customer Full Name"] = le.fit_transform(data["Customer Full Name"])
-
-    ros = RandomOverSampler(random_state=42)
-    return ros.fit_resample(data.loc[:, data.columns != "fraud"], data["fraud"])
+    if sampling == None:
+        return data.loc[:, data.columns != "fraud"], data["fraud"]
+    elif sampling == "over":
+        return RandomOverSampler(random_state=42).fit_resample(
+            data.loc[:, data.columns != "fraud"], data["fraud"]
+        )
+    elif sampling == "smote":
+        return SMOTE(random_state=42).fit_resample(
+            data.loc[:, data.columns != "fraud"], data["fraud"]
+        )
     # return data.loc[:, data.columns != "fraud"], data["fraud"]
 
 
