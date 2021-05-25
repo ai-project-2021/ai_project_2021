@@ -2,6 +2,10 @@ import numpy as np
 from utils import get_product_recommend, get_rfm_data
 from utils.metrics import inertia
 import argparse
+import time
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+from sklearn.metrics import silhouette_samples, silhouette_score
 
 
 class KMeans:
@@ -117,17 +121,25 @@ if __name__ == "__main__":
 
     dataset = get_rfm_data(get_product_recommend())[["R_Value", "F_Value", "M_Value"]]
     model_dict = {"KMeans": KMeans, "KMedians": KMedians, "KMedoids": KMedoids}
-    import time
 
-    s = time.time()
     for model_ in args.models:
+        s = time.time()
+        elbow = []
         model = model_dict[model_](args.n_clusters[0])
-        for k in args.n_clusters:
+        n_cols = len(args.n_clusters)
+        fig, axs = plt.subplots(figsize=(4 * n_cols, 4), nrows=1, ncols=n_cols)
+
+        for i, k in enumerate(args.n_clusters):
             e = time.time()
             model.k = k
-            print(model.fit(dataset.values).inertia_)
+            elbow.append(model.fit(dataset.values).inertia_)
+            silhouette_avg = silhouette_score(dataset.values, model.labels_)
             print(
-                "K : {}, Current : {}, Accumulation : {}".format(
-                    k, time.time() - e, time.time() - s
+                "K : {}, Inertia : {}, Avg. Silhouette_Score : {}".format(
+                    k, elbow[-1], silhouette_avg
                 )
             )
+
+        plt.figure()
+        plt.plot(args.n_clusters, elbow)
+        plt.savefig(f"./{model_}.png")
