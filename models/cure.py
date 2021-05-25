@@ -98,7 +98,6 @@ class CURE:
         print("START FIT")
 
         # # Initialization
-        # numCluster = len(data)
         numPts = len(data)
 
         Clusters = [
@@ -110,71 +109,48 @@ class CURE:
         cluster_distance = np.triu(dist_mat, 1)
         cluster_distance[cluster_distance == 0] = float("inf")
         indexes = list(range(numPts))
-        # remove_list = [0 for _ in range(100)]
-        # remove_index = 0
+
         for numCluster in trange(numPts, self.k, -1, desc="cluster count"):
             # Find a pair of closet clusters
-            closet_ = np.where(cluster_distance == np.min(cluster_distance))
+            closet_ = np.where(cluster_distance == np.min(cluster_distance))  # Bottleneck
             clu_src = int(closet_[0][0])
             clu_dst = int(closet_[1][0])
             src = indexes.index(clu_src)
-            dst = indexes.index(clu_dst)
-            s1 = time.time()
 
             # Merge
-            idx_ = np.append(Clusters[src].index, Clusters[dst].index)
-            # dist_mat.ravel()[np.ravel_multi_index((idx_, idx_), dist_mat.shape)].reshape(dist_mat)
-            Clusters[src].merge(
-                Clusters[dst], self.numRepPoints, self.alpha, dist_mat[idx_][:, idx_]
-            )
-            e1 = time.time()
+            idx_ = np.append(Clusters[clu_src].index, Clusters[clu_dst].index)
 
-            s2 = time.time()
+            Clusters[clu_src].merge(
+                Clusters[clu_dst], self.numRepPoints, self.alpha, dist_mat[idx_][:, idx_]
+            )
+
+            dist_f = col_dist_max if type(Clusters[clu_src].repPoints[0]) != list else mat_dist_max
 
             # Update the distCluster matrix
-            if src != 0:
-                cluster_distance[clu_src, indexes[:src]] = Clusters[src].multiDistRep(
-                    Clusters[:src]
+            for i in indexes[:src]:
+                cluster_distance[clu_src, i] = dist_f(
+                    Clusters[clu_src].repPoints, Clusters[i].repPoints
                 )
-            if src + 2 != len(indexes):
-                cluster_distance[indexes[src + 1 :], clu_src] = Clusters[src].multiDistRep(
-                    Clusters[src + 1 :]
+            for i in indexes[src + 1 :]:  # range(src + 1, numCluster):
+                cluster_distance[i, clu_src] = dist_f(
+                    Clusters[clu_src].repPoints, Clusters[i].repPoints
                 )
-            e2 = time.time()
-
-            dist_f = col_dist_max if type(Clusters[src].repPoints[0]) != list else mat_dist_max
-
-            for i, ii in enumerate(indexes[:src]):
-                cluster_distance[clu_src, ii] = dist_f(
-                    Clusters[src].repPoints, Clusters[i].repPoints
-                )
-            for i, ii in enumerate(indexes[src + 1 :], src + 1):  # range(src + 1, numCluster):
-                cluster_distance[ii, clu_src] = dist_f(
-                    Clusters[src].repPoints, Clusters[i].repPoints
-                )
-
-            # for i, ii in enumerate(indexes[:src]):
-            #     # cluster_distance[clu_src, ii] = Clusters[src].distRep(Clusters[i])
-            #     cluster_distance[clu_src, ii] = Clusters[src].distRep(Clusters[i])
-            # for i, ii in enumerate(indexes[src + 1 :], src + 1):  # range(src + 1, numCluster):
-            #     # cluster_distance[ii, clu_src] = Clusters[src].distRep(Clusters[i])
-            #     cluster_distance[ii, clu_src] = Clusters[src].distRep(Clusters[i])
 
             # Delete the merged cluster and its disCluster vector.
-            s3 = time.time()
             cluster_distance[clu_dst, :] = float("inf")
             cluster_distance[:, clu_dst] = float("inf")
-            del Clusters[dst]
             indexes.remove(clu_dst)
-            e3 = time.time()
 
         # Generate sample labels
-        labels = np.zeros((numPts))
+        self.labels_ = np.zeros((numPts))
         for i, c in enumerate(Clusters, 1):
-            labels[c.index] = i
+            self.labels_[c.index] = i
         with open("./cure.pkl", "w") as f:
             pkl.dump(self, f)
-        return labels
+        return self
+
+    def fit_predict(self, data):
+        return self.fit(data).labels
 
 
 if __name__ == "__main__":
