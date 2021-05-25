@@ -10,8 +10,8 @@ class KMeans:
         self.f = np.mean
 
     def _update(self):
-        _clu = lambda r: np.array(np.sum((self.centriod_ - r) ** 2, axis=1) ** 0.5).argmin()
-        return np.eye(self.k)[np.array([_clu(row) for row in self.datas])]
+        _clu = lambda c: np.array(np.sum((self.datas - c) ** 2, axis=1) ** 0.5)
+        return np.eye(self.k)[np.array([_clu(c) for c in self.centriod_]).argmin(axis=0)]
 
     def fit(self, datas):
         self.datas = datas
@@ -113,9 +113,9 @@ if __name__ == "__main__":
         for k in args.n_clusters:
             e = time.time()
             model.k = k
+            print(model.fit(dataset.values).inertia_)
             print(
                 "K : {}, Current : {}, Accumulation : {}".format(
                     k, time.time() - e, time.time() - s
                 )
             )
-            print(model.fit(dataset.values).inertia_)
