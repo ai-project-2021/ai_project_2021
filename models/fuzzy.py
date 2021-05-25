@@ -34,7 +34,7 @@ class FuzzyKMeans:
         return X.mean(axis=0)
 
     def fit(self, X, y=None):
-        n_samples, n_features = X.shape
+        n_samples, _ = X.shape
         vdata = np.mean(np.var(X, 0))
 
         self.fuzzy_labels_ = check_random_state(self.random_state).rand(n_samples, self.k)
