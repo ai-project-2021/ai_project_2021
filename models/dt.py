@@ -4,7 +4,7 @@ import json
 import os
 
 from sklearn.tree import DecisionTreeClassifier
-from sklearn.model_selection import StratifiedKFold, GridSearchCV
+from sklearn.model_selection import StratifiedKFold, GridSearchCV, RepeatedStratifiedKFold
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import cross_val_score, cross_val_predict
 from sklearn.metrics import confusion_matrix, classification_report, f1_score, make_scorer
@@ -14,37 +14,41 @@ from utils import get_fraud
 class DTClassifier:
     def __init__(self, **kwargs):
         self.params = dict()
-        # self.params.load_path = kwargs.get("load_path", None)
-        # self.params.save_path = kwargs.get("save_path", None)
+        X, y = kwargs.get("X", None), kwargs.get("y", None)
+        self.get_data(X, y)
         # self.params.train_size = kwargs.get("train_size", None)
         # self.params.test_size = kwargs.get("test_size", None)
 
         # self.data = kwargs.get("data", None)
-        self.get_data()
 
         self.model_params = dict()
-        self.model_params["max_depth"] = None
+        self.model_params["max_depth"] = 8
         self.model_params["min_samples_leaf"] = 1
         self.model_params["min_samples_split"] = 2
         self.model_params["max_features"] = "auto"
         self.model_params["random_state"] = 123456
         self.model_params["criterion"] = "entropy"
-        self.model_params["class_weight"] = "balanced"
+        self.model_params["class_weight"] = {
+            label: (float(y[y != label].shape[0]) / float(y[y == label].shape[0])) ** 0.5
+            for label in np.unique(y)
+        }
+
+        print(self.model_params["class_weight"])
+        print(y[y == 0].shape[0], y[y == 1].shape[0])
 
         self.clf = DecisionTreeClassifier(
             **self.model_params,
         )
 
-        self.k_fold = StratifiedKFold(
-            n_splits=5, shuffle=True, random_state=self.model_params["random_state"]
+        self.k_fold = RepeatedStratifiedKFold(
+            n_splits=5, random_state=self.model_params["random_state"]
         )
 
     def save_params(self, _path):
         with open(_path, "w") as f:
             json.dump(dict(self.params, **self.model_params), f)
 
-    def get_data(self):
-        X, y = get_fraud()
+    def get_data(self, X, y):
         self.features_names = X.columns
 
         self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(
@@ -63,13 +67,19 @@ class DTClassifier:
 
     def kfold_train(self):
         self.clf.fit(self.X_train, self.y_train)
-        return cross_val_score(self.clf, self.X_train, self.y_test, cv=self.k_fold).mean()
+        f1 = make_scorer(f1_score, average="macro")
+        return cross_val_score(
+            self.clf, self.X_train, self.y_train, cv=self.k_fold, scoring=f1
+        ).mean()
 
     def kfold_test(self):
-        return cross_val_score(self.clf, self.X_test, self.y_test, cv=self.k_fold).mean()
+        f1 = make_scorer(f1_score, average="macro")
+        return cross_val_score(
+            self.clf, self.X_test, self.y_test, cv=self.k_fold, scoring=f1
+        ).mean()
 
-    def kfold_predict(self):
-        return cross_val_predict(self.clf, self.X_test, self.y_test, cv=self.k_fold)
+    def kfold_predict(self, X):
+        return cross_val_predict(self.clf, X, cv=self.k_fold)
 
     def gridSearch(self):
         f1 = make_scorer(f1_score, average="macro")
@@ -83,7 +93,7 @@ class DTClassifier:
         self.grid_clf.fit(self.X_train, self.y_train)
         return (
             self.grid_clf.best_params_,
-            # self.grid_clf.cv_results_,
+            self.grid_clf.cv_results_,
         )
 
     def result(self):
@@ -104,14 +114,6 @@ class DTClassifier:
 
 
 if __name__ == "__main__":
-    model = DTClassifier()
-    # print(model.gridSearch())
-    print(model.train())
-    print(model.test())
-    print(classification_report(model.y_test, model.predict(model.X_test)))
-
-    print(
-        pd.DataFrame(
-            confusion_matrix(model.y_test, model.predict(model.X_test)),
-        )
-    )
+    X, y = get_fraud()
+    model = DTClassifier(X=X, y=y)
+    print(model.gridSearch())
