@@ -14,24 +14,29 @@ from utils import get_fraud
 class RFClassifier:
     def __init__(self, **kwargs):
         self.params = dict()
+
         X, y = kwargs.get("X", None), kwargs.get("y", None)
+        if X is None or y is None:
+            X, y = get_fraud()
         self.params["test_size"] = kwargs.get("test_size", 0.2)
         self.get_data(X, y)
 
         self.model_params = dict()
-        self.model_params["n_estimators"] = 20
-        self.model_params["oob_score"] = False
-        self.model_params["max_depth"] = None
-        self.model_params["min_samples_leaf"] = 1
-        self.model_params["min_samples_split"] = 2
-        self.model_params["max_features"] = "auto"
+        self.model_params["n_estimators"] = 100
+        self.model_params["oob_score"] = True
+        self.model_params["max_depth"] = 30
+        self.model_params["min_samples_leaf"] = 4
+        self.model_params["min_samples_split"] = 8
+        self.model_params["max_features"] = "sqrt"
         self.model_params["random_state"] = 123456
         self.model_params["criterion"] = "entropy"
+        self.model_params["class_weight"] = {
+            y_: y[y != y_].shape[0] / y[y == y_].shape[0] for y_ in np.unique(y.values)
+        }
 
         self.clf = RandomForestClassifier(
             **self.model_params,
-            n_jobs=os.cpu_count(),
-            class_weight="balanced",
+            n_jobs=-1,
         )
 
         self.k_fold = StratifiedKFold(
