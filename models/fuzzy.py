@@ -46,8 +46,8 @@ class FuzzyKMeans:
         """
         # D : fuzzy 멤버십, 즉 data가 클러스터에 얼마나 속해 있는지를 계산한 값
         D = (1.0 / euclidean_distances(X, self.cluster_centers_, squared=True)) ** (
-            1.0 / (self.m - 1)
-        )  # 2.0 아닌지 체크 필요
+            2.0 / (self.m - 1)
+        )
 
         # shape: n_samples x k
         self.fuzzy_labels_ = D / np.sum(D, axis=1)[:, np.newaxis]
@@ -65,10 +65,7 @@ class FuzzyKMeans:
         weights = self.fuzzy_labels_ ** self.m
         self.cluster_centers_ = np.dot(X.T, weights).T / weights.sum(axis=0)[:, np.newaxis]
 
-    def _average(self, X):  # average를 참조하는 곳이 없음
-        return X.mean(axis=0)
-
-    def fit(self, X, y=None):  # y가 사용되지 않는데 지워도 되는지?
+    def fit(self, X):  # y가 사용되지 않는데 지워도 되는지?
         """초기 레이블 값을 설정하고, 최대 갱신 횟수만큼 cluster 중심을 갱신하며 데이터 별 최적의 레이블 값을 선택하는 함수이다.
         Args:
             X (datas): 원본 data중 'order date (Date Orders)', 'Order Item Quantity','Order Item Total'
