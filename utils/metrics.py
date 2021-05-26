@@ -2,20 +2,20 @@ import numpy as np
 
 
 def dist(X, y):
+    """Eucildian Distance = L_2 Distance
+
+    Args:
+        X (np.ndarray): np.ndarray
+        y (np.array): np.array
+
+    Returns:
+        [np.array]: Eucildian Distance Array
+    """
     return np.sum(np.power((X - y), 2), axis=1) ** 0.5
 
 
 def inertia(features, labels, centriod):
     return np.sum([np.sum(np.power((x - centriod[k]), 2)) for x, k in zip(features, labels)])
-
-
-def elbow(models, range_k, datas):
-    WCSS = [0 for _ in range_k]
-    model_ = models
-    for i, k in enumerate(range_k):
-        model_.k = k
-        WCSS[i] = model_.fit(datas).inertia_
-    return WCSS
 
 
 def silhouette_score(models, range_k, datas):

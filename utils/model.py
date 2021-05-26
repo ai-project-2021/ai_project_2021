@@ -1,25 +1,54 @@
 import keras
+import pickle as pkl
 import os
 import plotly.express as px
 
 
-def save_model(_path, model):
+def save_keras(_path, model, params):
+    save(_path, model, "keras")
+
+
+def load_keras(_path):
+    return load(_path, "keras")
+
+
+def save(_path, model, params, type=None):
+    """Model Saver
+
+    Args:
+        _path (path): model path
+        model (object): Pre-Train Model
+        type (str): model type
+
+    Raises:
+        FileExistsError:
+    """
     if os.path.isfile(_path):
-        print("이미 존재하는 파일입니다.")
-        return -1
+        raise FileExistsError("이미 존재하는 파일입니다.")
     else:
-        model.save(_path, format="h5")
-        return 0
+        if type == "keras":
+            model.save(_path, format="h5")
+        else:
+            pkl.dump(model, open(_path, "wb"))
 
 
-def load_model(_path):
-    if os.path.isfile(_path):
-        return keras.models.load_model(_path)
+def load(_path, type=None):
+    """Model Loader
+
+    Args:
+        _path (str): model path
+        type (str): model type
+
+    Raises:
+        FileExistsError: File {_path} does not exist
+
+    Returns:
+        object: model
+    """
+    if not os.path.isfile(_path):
+        raise FileExistsError("존재하지 않는 파일입니다.")
     else:
-        print("존재하지 않는 파일입니다.")
-        return -1
-
-
-def rfm_plot(X, y):
-    fig = px.scatter_3d(X, x="R_Value", y="F_Value", z="M_Value", color=y)
-    fig.show()
+        if type == "keras":
+            return keras.models.load_model(_path)
+        else:
+            return pkl.load(open(_path, "rb"))
