@@ -10,6 +10,10 @@ from sklearn.metrics import (
     silhouette_score,
 )  # Clustering의 품질을 정량적으로 평가해주는 지표. [0-1] 1에 가까울 수록 우수한 품질
 
+from sklearn_extra.cluster import KMedoids as km
+from sklearn.metrics.pairwise import pairwise_distances
+from sklearn.utils import check_array, check_random_state
+
 
 class KMeans:
     def __init__(self, k):
@@ -137,7 +141,7 @@ class KMedoids:
         """
         return np.sqrt(np.sum(np.square(xa - xb), axis=-1))
 
-    def find_medoids(self, labels):
+    def _update_medoids(self, labels, medoids):
         """각 클러스터를 대표하는 데이터인 medoids를 지정하는 함수이다.
 
         Args:
@@ -146,17 +150,16 @@ class KMedoids:
         Returns:
             medoid를 반환한다.
         """
-        medoids = np.full(self.k, -1, dtype=int)
-        subset = np.random.choice(self.datas.shape[0], self.batch_size, replace=False)
+        # medoids = np.full(self.k, -1, dtype=int)
 
         for i in range(self.k):
-            indices = np.intersect1d(np.where(labels == i)[0], subset)
+            indices = np.where(labels == i)[0]
             distances = self.dist(self.datas[indices, None, :], self.datas[None, indices, :]).sum(
                 axis=0
             )
-            medoids[i] = indices[np.argmin(distances)]
 
-        return medoids
+            if np.min(distances) < np.argmax(indices == medoids[k]):
+                medoids[i] = indices[np.argmin(distances)]
 
     def fit(self, datas):
         """초기 medoid을 랜덤하게 초기화 해주는 initialization 과정과,
@@ -170,33 +173,20 @@ class KMedoids:
             self: 각 데이터와 데이터의 라벨값을 반환한다.
         """
         self.datas = datas
-        # 임의로 정한 기존 데이터의 10% 크기의 batch size
-        self.batch_size = datas.shape[0] // 10
-        medoids = np.random.choice(self.datas.shape[0], self.k, replace=False)
-        prev_labels = self._update(medoids)
-        best_diffs = 1e10
-        best_steps_ = -1
 
-        for i in range(self.max_iters):
-            medoids = self.find_medoids(prev_labels)
-            labels = self._update(medoids)
-            # diff : 갱신 전 후 레이블 값의 차이
-            diffs = np.mean(labels != prev_labels)
-            prev_labels = labels
+        D = pairwise_distances(self.datas, metric="euclidian")
+        medoids = check_random_state(0).choice(len(D), self.k)
 
-            print("iteration {:2d}: {:.6%}p of points got reassigned." "".format(i, diffs))
-            # 갱신된 라벨과 갱신되기 전 레이블값을 비교하여 갱신을 계속 할 지 결정한다.
-            if diffs < 0.01:
-                self.medoids_ = medoids
-                self.labels_ = prev_labels
-                break
-            elif best_diffs > diffs:
-                self.medoids_ = medoids
-                self.labels_ = prev_labels
-                best_steps_ = i
-            elif i - best_steps_ > (self.max_iters // 10):
+        for _ in range(self.max_iters):
+            prev_medoids = np.copy(medoids)
+            labels = np.argmin(D[medoids, :], axis=0)
+            self._update_medoids(labels, medoids)
+
+            if np.all(prev_medoids == medoids):
                 break
 
+        self.labels_ = labels
+        self.medoids_ = medoids
         self.inertia_ = inertia(datas, self.labels_, self.medoids_)
         return self
 
@@ -207,7 +197,8 @@ class KMedoids:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="K-Centriod Arguments")
     parser.add_argument("--models", "-m", type=str, action="append", help="K-Centriod Method Type")
-    parser.add_argument("--n_clusters", "-k", type=int, action="append")
+    parser.add_argument("--start_k", "-s", type=int)
+    parser.add_argument("--end_k", "-e", type=int)
     args = parser.parse_args()
 
     dataset = get_rfm_data()[["R_Value", "F_Value", "M_Value"]]
@@ -216,13 +207,14 @@ if __name__ == "__main__":
     for model_ in args.models:
         s = time.time()
         inertia_list = []
-        model = model_dict[model_](args.n_clusters[0])
-        n_cols = len(args.n_clusters)
+        # model = model_dict[model_](args.n_clusters[0])
+        model = km(n_clusters=args.start_k)
+        n_cols = args.end_k - args.start_k + 1
         fig, axs = plt.subplots(figsize=(4 * n_cols, 4), nrows=1, ncols=n_cols)
 
-        for i, k in enumerate(args.n_clusters):
+        for i, k in enumerate(range(args.start_k, args.end_k + 1)):
             e = time.time()
-            model.k = k
+            model.n_clusters = k
             inertia_list.append(model.fit(dataset.values).inertia_)
             silhouette_avg = silhouette_score(dataset.values, model.labels_)
             print(
@@ -232,5 +224,5 @@ if __name__ == "__main__":
             )
 
         plt.figure()
-        plt.plot(args.n_clusters, inertia_list)
+        plt.plot(list(range(args.start_k, args.end_k + 1)), inertia_list)
         plt.savefig(f"./{model_}.png")
