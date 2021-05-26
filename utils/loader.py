@@ -1,24 +1,33 @@
+from os import dup
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import LabelEncoder
 from imblearn.over_sampling import RandomOverSampler, SMOTE
 import datetime as dt
+from functools import reduce
+from tqdm import tqdm
 
 
 DEBUG = True
 
 
 def get_raw_data():
+    """load CSV File to pd.DataFrame
+
+    Returns:
+        [pd.DataFrame]: DataCoSupplyChainDataset DataFrame
+    """
     dataset = pd.read_csv(
         "dataset/DataCoSupplyChainDataset.csv",
         header=0,
         encoding="unicode_escape",
-    )
+    )  # CSV to DataFrame
 
     dataset["Customer Full Name"] = dataset["Customer Fname"].astype(str) + dataset[
         "Customer Lname"
     ].astype(str)
 
+    # Fraud Detection / Customer Segmentation 모두 사용하지 않는 Column Drop
     data = dataset.drop(
         [
             "Customer Email",
@@ -32,17 +41,28 @@ def get_raw_data():
             "Product Description",
             "Product Image",
             "Order Zipcode",
+            "Customer Zipcode",
             "shipping date (DateOrders)",
         ],
-        axis=1,
+        axis=1,  # By Column
     )
-    data["Customer Zipcode"] = data["Customer Zipcode"].fillna(0)  # Filling NaN columns with zero
-    return data
+
+    # 1가지 종류의 상품만을 구입한 사람은 Product Recomandation이 어렵기 때문에 Filtering
+    customer_filter = [
+        c_id
+        for c_id in data["Customer Id"].unique()
+        if len(data[data["Customer Id"] == c_id]["Product Name"].unique()) != 1
+    ]
+
+    return data[data["Customer Id"].isin(customer_filter)]
 
 
 def get_product_recommend():
-    data = get_raw_data()
-    data["TotalPrice"] = data["Order Item Quantity"] * data["Order Item Total"]
+    """Customer Order Dataset
+
+    Returns:
+        pd.DataFrame: Customer Order DataFrame
+    """
 
     cols = [
         "Customer Id",
@@ -51,20 +71,11 @@ def get_product_recommend():
         "Order Item Quantity",
         "Order Item Total",
         "Product Name",
-        "TotalPrice",
     ]
 
-    dataset = data[cols]
-
-    if DEBUG:
-        print(data[cols].nunique())  # each column's unique value == unique().shape[0]
-        print(data["Customer Id"].nunique())
-        print("\n")
-
-    return dataset
+    return get_raw_data()[cols]
 
 
-# R_Score should be minimum so 1st quantile is set as 1.
 def R_Score(a, b, c):
     if a <= c[b][0.25]:
         return 1
@@ -76,7 +87,6 @@ def R_Score(a, b, c):
         return 4
 
 
-# The higher the F_Score,M_Score the better so 1st quantile is set as 4.
 def FM_Score(x, y, z):
     if x <= z[y][0.25]:
         return 4
@@ -88,144 +98,145 @@ def FM_Score(x, y, z):
         return 1
 
 
-def get_rfm_score(datas):
-    present = dt.datetime(2018, 2, 1)
-    datas["order date (DateOrders)"] = pd.to_datetime(datas["order date (DateOrders)"])
-    Customer_seg = (
-        datas.groupby("Customer Id")
-        .agg(
-            {
-                "order date (DateOrders)": lambda x: (present - x.max()).days,
-                "Order Id": lambda x: len(x),
-                "TotalPrice": lambda x: x.sum(),
-            }
-        )
-        .reset_index()
+def get_rfm_score(rfm):
+    """R/F/M Value 정보를 바탕으로 4분위수를 기준으로 Score로 환산한 뒤, RFM Score를 계산하여 반환
+
+    Args:
+        rfm (pd.DataFrame): [Customer_Id, R_Value, F_Value, M_Value] 정보를 가진 DataFrame
+
+    Returns:
+        [pd.DataFrame]: Customer_Id, R_Value, F_Value, M_Value, RFM_Score
+    """
+    quantiles = rfm.quantile(q=[0.25, 0.5, 0.75]).to_dict()  # Dividing RFM data into four quartiles
+
+    rfm["R_Score"] = rfm["R_Value"].apply(R_Score, args=("R_Value", quantiles))
+    rfm["F_Score"] = rfm["F_Value"].apply(FM_Score, args=("F_Value", quantiles))
+    rfm["M_Score"] = rfm["M_Value"].apply(FM_Score, args=("M_Value", quantiles))
+    rfm["RFM_Total_Score"] = rfm[["R_Score", "F_Score", "M_Score"]].sum(axis=1)
+
+    return rfm[["Customer Id", "R_Value", "F_Value", "M_Value", "RFM_Total_Score"]]
+
+
+def get_rfm_data():
+    """상품 주문 정보를 바탕으로 R/F/M Value를 계산하고, Customer Id과 RFM Value를 가지는 pd.DataFrame 반환
+
+    Returns:
+        [pd.DataFrame]: Customer_Id, R_Value, F_Value, M_Value 정보를 가진 pd.DataFrame
+    """
+    data = get_product_recommend()
+
+    cur = dt.datetime(2018, 2, 1)  # Dataset에서 가장 최근인 날.
+    data["R_Value"] = pd.to_datetime(data["order date (DateOrders)"]).apply(
+        lambda t: (cur - t).days
     )
+    data["M_Value"] = data["Order Item Quantity"] * data["Order Item Total"]
 
-    Customer_seg["order date (DateOrders)"] = Customer_seg["order date (DateOrders)"].astype(int)
-    Customer_seg.rename(
-        columns={
-            "order date (DateOrders)": "R_Value",
-            "Order Id": "F_Value",
-            "TotalPrice": "M_Value",
-        },
-        inplace=True,
-    )
-    quantiles = Customer_seg.quantile(q=[0.25, 0.5, 0.75])  # Dividing RFM data into four quartiles
-    quantiles = quantiles.to_dict()
+    r_value = (data.groupby("Customer Id")["R_Value"].max().reset_index())[
+        ["Customer Id", "R_Value"]
+    ]
 
-    Customer_seg["R_Score"] = Customer_seg["R_Value"].apply(R_Score, args=("R_Value", quantiles))
-    Customer_seg["F_Score"] = Customer_seg["F_Value"].apply(FM_Score, args=("F_Value", quantiles))
-    Customer_seg["M_Score"] = Customer_seg["M_Value"].apply(FM_Score, args=("M_Value", quantiles))
-
-    Customer_seg["RFM_Total_Score"] = Customer_seg[["R_Score", "F_Score", "M_Score"]].sum(axis=1)
-    Customer_seg["RFM_Total_Score"].unique()
-
-    rfm = Customer_seg[["Customer Id", "R_Value", "F_Value", "M_Value", "RFM_Total_Score"]]
-    return rfm
-
-
-def get_rfm_data(customer_data):
-    customer_data["order date (DateOrders)"] = pd.to_datetime(
-        customer_data["order date (DateOrders)"]
-    )
-    customer_data["M_Value"] = (
-        customer_data["Order Item Quantity"] * customer_data["Order Item Total"]
-    )
-
-    tmp = (
-        customer_data.groupby("Customer Id")["order date (DateOrders)"]
-        .max()
-        .reset_index()
-        .rename(columns={"order date (DateOrders)": "R_Value"})
-    )
-
-    tmp2 = (
-        customer_data.groupby("Customer Id")["Order Id"]
+    f_value = (
+        data.groupby("Customer Id")["Order Id"]
         .count()
         .reset_index()
         .rename(columns={"Order Id": "F_Value"})
+    )[["Customer Id", "F_Value"]]
+
+    m_value = data.groupby("Customer Id")["M_Value"].sum().reset_index()[["Customer Id", "M_Value"]]
+
+    # Create R/F/M Value DataFrame
+    rfm = reduce(
+        lambda l, r: pd.merge(l, r, on="Customer Id", how="left"), [r_value, f_value, m_value]
     )
-
-    tmp3 = customer_data.groupby("Customer Id")["M_Value"].sum().reset_index()
-
-    customer_data.drop(
-        [
-            "Order Id",
-            "order date (DateOrders)",
-            "Order Item Quantity",
-            "Order Item Total",
-            "Product Name",
-        ],
-        axis=1,
-        inplace=True,
-    )
-
-    rfm = pd.merge(tmp, tmp2, on="Customer Id", how="left")
-    rfm = pd.merge(rfm, tmp3, on="Customer Id", how="left")
 
     if DEBUG:
         print("RFM\n", rfm)
 
-    time = rfm["R_Value"] - pd.to_datetime("20141231")  # 가장 이른 날인 2015.01.01보다 이른 날짜를 기준으로 사용
-
-    # Timedelta의 attribute인 total_seconds() : time을 초 단위로 바꾸어 줌
-    rfm["R_Value"] = [int(x.total_seconds() / (10 ** 4)) for x in time]
-
     return rfm
 
 
-def get_fraud(sampling=None):
-    data = get_raw_data()
+def get_fraud(sampling=None, is_get_dummies=False):
+    """Generate Fraud Detection Dataset
+
+    Args:
+        sampling ([str], optional): [Sampling Method]. Defaults to None.
+        is_get_dummies (bool, optional): [One-Hot Encoding]. Defaults to False.
+
+    Returns:
+        [(np.ndarray, np.array)]: X, y ((records, n_features), (records, ))
+    """
+    data = get_raw_data()  # get Row Dataset
+
+    # 주문 총액, 주문 사기 여부, 배송 지연 여부 Column 생성
     data["TotalPrice"] = data["Order Item Quantity"] * data["Order Item Total"]
     data["fraud"] = np.where(data["Order Status"] == "SUSPECTED_FRAUD", 1, 0)
     data["late_delivery"] = np.where(data["Delivery Status"] == "Late delivery", 1, 0)
 
+    # Pre-Processing Columns Drop
     data.drop(
         [
             "Delivery Status",
             "Late_delivery_risk",
             "Order Status",
-            # "order_month_year",
             "order date (DateOrders)",
         ],
         axis=1,
         inplace=True,
     )
 
-    # data["order date (DateOrders)"] = pd.to_datetime(data["order date (DateOrders)"])
+    # Categorical Columns
 
-    le = LabelEncoder()
+    X, y = data.loc[:, data.columns != "fraud"], data["fraud"]
 
-    data["Customer Country"] = le.fit_transform(data["Customer Country"])
-    data["Market"] = le.fit_transform(data["Market"])
-    data["Type"] = le.fit_transform(data["Type"])
-    data["Product Name"] = le.fit_transform(data["Product Name"])
-    data["Customer Segment"] = le.fit_transform(data["Customer Segment"])
-    data["Customer State"] = le.fit_transform(data["Customer State"])
-    data["Order Region"] = le.fit_transform(data["Order Region"])
-    data["Order City"] = le.fit_transform(data["Order City"])
-    data["Category Name"] = le.fit_transform(data["Category Name"])
-    data["Customer City"] = le.fit_transform(data["Customer City"])
-    data["Department Name"] = le.fit_transform(data["Department Name"])
-    data["Order State"] = le.fit_transform(data["Order State"])
-    data["Shipping Mode"] = le.fit_transform(data["Shipping Mode"])
-    # data["order_week_day"] = le.fit_transform(data["order_week_day"])
-    data["Order Country"] = le.fit_transform(data["Order Country"])
-    data["Customer Full Name"] = le.fit_transform(data["Customer Full Name"])
+    categorical_columns = [c for c, dtype_ in zip(X.columns, X.dtypes) if dtype_ == "object"]
+
+    if is_get_dummies == True:  # One-Hot Vector
+        numeric_columns = [c for c, dtype_ in zip(X.columns, X.dtypes) if dtype_ != "object"]
+        X = X[numeric_columns] + pd.get_dummies(X[categorical_columns])
+
+    else:  # Object to Integer (is_get_dummies == False)
+        le = LabelEncoder()
+        for col in categorical_columns:
+            X[col] = le.fit_transform(X[col])
+
     if sampling == None:
-        return data.loc[:, data.columns != "fraud"], data["fraud"]
+        return X, y
     elif sampling == "over":
-        return RandomOverSampler(random_state=42).fit_resample(
-            data.loc[:, data.columns != "fraud"], data["fraud"]
-        )
+        return RandomOverSampler(random_state=42).fit_resample(X, y)
     elif sampling == "smote":
-        return SMOTE(random_state=42).fit_resample(
-            data.loc[:, data.columns != "fraud"], data["fraud"]
-        )
-    # return data.loc[:, data.columns != "fraud"], data["fraud"]
+        return SMOTE(random_state=42).fit_resample(X, y)
+
+
+def get_order(key_):
+    """Product Recommdatation Dataset
+
+    Args:
+        key_ (str): Quantity, Count, All : Summarize For Order Item Quantity Method
+
+    Returns:
+        dict(key :dict()): id : dict(Product Name = Summarize For Order Item Quantity)
+    """
+    order_data = get_raw_data()[["Customer Id", "Product Name", "Order Item Quantity"]]
+
+    if key_ == "quantity":
+        f = lambda x: x.sum()
+    elif key_ == "count":
+        f = lambda x: len(x)
+    elif key_ == "all":
+        f = lambda x: x.sum() + len(x)
+
+    get_item = lambda item: {
+        sub_key: f(sub_item["Order Item Quantity"])
+        for sub_key, sub_item in item.groupby("Product Name")
+    }
+
+    order_dict = {
+        c_id: get_item(order_data[order_data["Customer Id"] == c_id])
+        for c_id in order_data["Customer Id"].unique()
+    }
+
+    return order_dict
 
 
 if __name__ == "__main__":
-    get_rfm_data(get_product_recommend())
+    get_order(key_="quantity")
