@@ -6,7 +6,7 @@ import argparse
 from tqdm import trange
 import time
 
-from utils import get_product_recommend, get_rfm_data
+from utils import get_rfm_data
 from utils.metrics import inertia
 from matplotlib import pyplot as plt
 
@@ -70,7 +70,7 @@ if __name__ == "__main__":
     parser.add_argument("--n_clusters", "-k", type=int, action="append")
     args = parser.parse_args()
 
-    dataset = get_rfm_data(get_product_recommend())[["R_Value", "F_Value", "M_Value"]]
+    dataset = get_rfm_data()[["R_Value", "F_Value", "M_Value"]]
     model = FuzzyKMeans(k=3, m=2, max_iter=100, random_state=0, threshold=1e-6)
 
     s = time.time()

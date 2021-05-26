@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
 import json
-import os
 
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.model_selection import StratifiedKFold, GridSearchCV, RepeatedStratifiedKFold
@@ -95,12 +94,6 @@ class DTClassifier:
 
     def result(self):
         _pred = self.predict(self.X_test)
-
-        reversefactor = dict(zip(range(2), range(2)))
-        y_pred = np.vectorize(reversefactor.get)(_pred)
-        y_test = np.vectorize(reversefactor.get)(self.y_test)
-
-        cm = pd.crosstab(y_test, y_pred)
         cm = pd.DataFrame(
             confusion_matrix(self.y_test, _pred),
         )

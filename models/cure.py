@@ -3,12 +3,10 @@ import numpy as np
 from tqdm import tqdm, trange
 import os
 import sys
-from multiprocessing import pool
-import time
 import pickle as pkl
 from numba import njit
 
-from utils import get_product_recommend, get_rfm_data
+from utils import get_rfm_data
 
 
 @njit
@@ -24,15 +22,6 @@ def col_dist_max(mat_, vec_):
 @njit
 def mat_dist_max(mat_x, mat_y):
     return np.sqrt(np.sum(np.square(mat_x - mat_y), axis=-1)).max()
-
-
-def parallel_call(params):  # a helper for calling 'remote' instances
-    cls = getattr(sys.modules[__name__], params[0])  # get our class type
-    instance = cls.__new__(cls)  # create a new instance without invoking __init__
-    instance.__dict__ = params[1]  # apply the passed state to the new instance
-    method = getattr(instance, params[2])  # get the requested method
-    args = params[3] if isinstance(params[3], (list, tuple)) else [params[3]]
-    return method(*args)  # expand arguments, call our method and return the result
 
 
 # This class describes the data structure and method of operation for CURE clustering.
@@ -77,16 +66,6 @@ class Cluster:
         self.index = np.append(self.index, clu.index)
         self._updateRepPoints(numRepPoints, alpha, dist_)
 
-    def prepareDistRep(self, name, args):
-        for arg in args:
-            yield [self.__class__.__name__, self.__dict__, name, arg]
-
-    def multiDistRep(self, clu):
-        t = pool.ThreadPool(processes=os.cpu_count())
-        rs = t.map(parallel_call, self.prepareDistRep("distRep", clu))
-        t.close()
-        return rs
-
 
 class CURE:
     def __init__(self, numRepPoints, alpha, k):
@@ -106,15 +85,19 @@ class CURE:
         ]
 
         dist_mat = np.vstack([col_dist(data, data[i, :]) for i in range(len(data))])
-        cluster_distance = np.triu(dist_mat, 1)
+        cluster_distance = np.array(np.triu(dist_mat, 1), dtype="float")
         cluster_distance[cluster_distance == 0] = float("inf")
         indexes = list(range(numPts))
 
-        for numCluster in trange(numPts, self.k, -1, desc="cluster count"):
+        for _ in trange(numPts, self.k, -1, desc="cluster count"):
             # Find a pair of closet clusters
-            closet_ = np.where(cluster_distance == np.min(cluster_distance))  # Bottleneck
-            clu_src = int(closet_[0][0])
-            clu_dst = int(closet_[1][0])
+
+            @njit
+            def find_idx():
+                closet_ = np.where(cluster_distance == np.min(cluster_distance))
+                return int(closet_[0][0]), int(closet_[1][0])
+
+            clu_src, clu_dst = find_idx()
             src = indexes.index(clu_src)
 
             # Merge
@@ -145,6 +128,7 @@ class CURE:
         self.labels_ = np.zeros((numPts))
         for i, c in enumerate(Clusters, 1):
             self.labels_[c.index] = i
+
         with open("./cure.pkl", "w") as f:
             pkl.dump(self, f)
         return self
@@ -154,5 +138,5 @@ class CURE:
 
 
 if __name__ == "__main__":
-    datas = get_rfm_data(get_product_recommend())
+    datas = get_rfm_data()
     CURE(5, 0.1, 3).fit(datas.values)

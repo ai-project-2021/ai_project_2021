@@ -1,5 +1,5 @@
 import numpy as np
-from utils import get_product_recommend, get_rfm_data
+from utils import get_rfm_data
 from utils.metrics import inertia
 import argparse
 import time
@@ -119,12 +119,12 @@ if __name__ == "__main__":
     parser.add_argument("--n_clusters", "-k", type=int, action="append")
     args = parser.parse_args()
 
-    dataset = get_rfm_data(get_product_recommend())[["R_Value", "F_Value", "M_Value"]]
+    dataset = get_rfm_data()[["R_Value", "F_Value", "M_Value"]]
     model_dict = {"KMeans": KMeans, "KMedians": KMedians, "KMedoids": KMedoids}
 
     for model_ in args.models:
         s = time.time()
-        elbow = []
+        inertia_list = []
         model = model_dict[model_](args.n_clusters[0])
         n_cols = len(args.n_clusters)
         fig, axs = plt.subplots(figsize=(4 * n_cols, 4), nrows=1, ncols=n_cols)
@@ -132,14 +132,14 @@ if __name__ == "__main__":
         for i, k in enumerate(args.n_clusters):
             e = time.time()
             model.k = k
-            elbow.append(model.fit(dataset.values).inertia_)
+            inertia_list.append(model.fit(dataset.values).inertia_)
             silhouette_avg = silhouette_score(dataset.values, model.labels_)
             print(
                 "K : {}, Inertia : {}, Avg. Silhouette_Score : {}".format(
-                    k, elbow[-1], silhouette_avg
+                    k, inertia_list[-1], silhouette_avg
                 )
             )
 
         plt.figure()
-        plt.plot(args.n_clusters, elbow)
+        plt.plot(args.n_clusters, inertia_list)
         plt.savefig(f"./{model_}.png")
