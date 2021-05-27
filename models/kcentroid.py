@@ -141,7 +141,7 @@ class KMedoids:
         """
         return np.sqrt(np.sum(np.square(xa - xb), axis=-1))
 
-    def _update_medoids(self, labels, medoids):
+    def _update_medoids(self, labels, medoids_indices):
         """각 클러스터를 대표하는 데이터인 medoids를 지정하는 함수이다.
 
         Args:
@@ -150,16 +150,14 @@ class KMedoids:
         Returns:
             medoid를 반환한다.
         """
-        # medoids = np.full(self.k, -1, dtype=int)
 
         for i in range(self.k):
             indices = np.where(labels == i)[0]
-            distances = self.dist(self.datas[indices, None, :], self.datas[None, indices, :]).sum(
-                axis=0
-            )
+            cost = np.sum(self.dist[indices, indices[:, np.newaxis]], axis=1)
+            _idx = np.argmin(cost)
 
-            if np.min(distances) < np.argmax(indices == medoids[k]):
-                medoids[i] = indices[np.argmin(distances)]
+            if cost[_idx] < cost[np.argmax(indices == medoids_indices[i])]:
+                medoids_indices[i] = indices[_idx]
 
     def fit(self, datas):
         """초기 medoid을 랜덤하게 초기화 해주는 initialization 과정과,
@@ -174,19 +172,20 @@ class KMedoids:
         """
         self.datas = datas
 
-        D = pairwise_distances(self.datas, metric="euclidian")
-        medoids = check_random_state(0).choice(len(D), self.k)
+        self.dist = pairwise_distances(self.datas, metric="euclidean")
+        # medoids = check_random_state(0).choice(len(D), self.k)
+        medoids_indices = np.argpartition(np.sum(self.dist, axis=1), self.k - 1)[: self.k]
 
         for _ in range(self.max_iters):
-            prev_medoids = np.copy(medoids)
-            labels = np.argmin(D[medoids, :], axis=0)
-            self._update_medoids(labels, medoids)
+            prev_medoids_indices = np.copy(medoids_indices)
+            labels = np.argmin(self.dist[medoids_indices, :], axis=0)
+            self._update_medoids(labels, medoids_indices)
 
-            if np.all(prev_medoids == medoids):
+            if np.all(prev_medoids_indices == medoids_indices):
                 break
 
         self.labels_ = labels
-        self.medoids_ = medoids
+        self.medoids_ = self.datas[medoids_indices]
         self.inertia_ = inertia(datas, self.labels_, self.medoids_)
         return self
 
@@ -207,18 +206,19 @@ if __name__ == "__main__":
     for model_ in args.models:
         s = time.time()
         inertia_list = []
-        # model = model_dict[model_](args.n_clusters[0])
-        model = km(n_clusters=args.start_k)
+        model = model_dict[model_](k=args.start_k)
+        # model = km(n_clusters=args.start_k)
         n_cols = args.end_k - args.start_k + 1
         fig, axs = plt.subplots(figsize=(4 * n_cols, 4), nrows=1, ncols=n_cols)
 
         for i, k in enumerate(range(args.start_k, args.end_k + 1)):
             e = time.time()
             model.n_clusters = k
+            model.k = k
             inertia_list.append(model.fit(dataset.values).inertia_)
             silhouette_avg = silhouette_score(dataset.values, model.labels_)
             print(
-                "K : {}, Inertia : {}, Avg. Silhouette_Score : {}".format(
+                "K : {:g}, Inertia : {:g}, Avg. Silhouette_Score : {:g}".format(
                     k, inertia_list[-1], silhouette_avg
                 )
             )
