@@ -149,6 +149,65 @@ class CURE:
     def fit_predict(self, data):
         return self.fit(data).labels_
 
+    def fit_restart(self, k):
+        assert k < self.k
+        self.k = k
+
+        Clusters = self.clusters
+
+        cluster_distance = self.cluster_distance
+
+        dist_mat = np.vstack([col_dist(self.data, self.data[i, :]) for i in range(len(self.data))])
+
+        for cur_k in trange(len(self.indices), self.k, -1):
+            # Find a pair of closet clusters
+
+            @njit
+            def find_idx():
+                closet_ = np.where(cluster_distance == np.min(cluster_distance))
+                return int(closet_[0][0]), int(closet_[1][0])
+
+            src, dst = find_idx()
+            print(src, dst)
+
+            # Merge
+            idx_ = np.append(Clusters[src].index, Clusters[dst].index)
+            Clusters[src].merge(
+                Clusters[dst], self.numRepPoints, self.alpha, dist_mat[idx_][:, idx_]
+            )
+
+            dist_f = col_dist_max if type(Clusters[src].repPoints[0]) != list else mat_dist_max
+
+            # Update the distCluster matrix
+            for i in range(src):
+                cluster_distance[src, i] = dist_f(Clusters[src].repPoints, Clusters[i].repPoints)
+            for i in range(src + 1, dst):
+                cluster_distance[i, src] = dist_f(Clusters[src].repPoints, Clusters[i].repPoints)
+
+            # Delete the merged cluster and its disCluster vector.
+            cluster_distance[dst, :] = float("inf")
+            cluster_distance[:, dst] = float("inf")
+            self.labels_[self.clusters[dst].index] = self.clusters[src].index[0]
+
+            cluster_distance = np.delete(np.delete(cluster_distance, dst, 0), dst, 1)
+            del Clusters[dst]
+
+            self.cluster_distance = cluster_distance
+
+            self.clusters = Clusters
+            self.cluster_centers_ = np.array([c.center for c in Clusters])
+            self.indices = [c.index[0] for c in self.clusters]
+            if DEBUG:
+                print(
+                    self.cluster_distance.shape[0],
+                    len(self.clusters),
+                    len(self.cluster_centers_),
+                    len(self.indices),
+                    len(np.unique(self.labels_)),
+                )
+
+            with open(f"./cure_5_0.1_{cur_k-1}.pkl", "wb") as f:
+                pkl.dump(self, f)
 
     def get_inertia(self):
         label2Idx = {c.index[0]: i for i, c in enumerate(self.clusters)}
@@ -163,4 +222,4 @@ class CURE:
 
 if __name__ == "__main__":
     datas = get_rfm_data()
-    CURE(5, 0.1, 3).fit(datas.values)
+    CURE(5, 0.1, 20).fit(datas.values)
