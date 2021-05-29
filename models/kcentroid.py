@@ -4,11 +4,15 @@ from utils.metrics import inertia
 import argparse
 import time
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+from sklearn.metrics import silhouette_samples, silhouette_score
 from sklearn.metrics.pairwise import pairwise_distances
 
 # Clustering의 품질을 정량적으로 평가해주는 지표. [0-1] 1에 가까울 수록 우수한 품질
 from utils.metrics import get_silhouette
 from utils.plot import silhouette_plot
+from utils.loader import rescaler
+import os
 
 
 class KMeans:
@@ -198,22 +202,42 @@ if __name__ == "__main__":
     parser.add_argument("--end_k", "-e", type=int)
     args = parser.parse_args()
 
-    dataset = get_rfm_data()[["R_Value", "F_Value", "M_Value"]]
+    data = get_rfm_data()[["R_Value", "F_Value", "M_Value"]]
     model_dict = {"KMeans": KMeans, "KMedians": KMedians, "KMedoids": KMedoids}
+    model_ = "KMeans"
+    # for model_ in args.models:
 
-    for model_ in args.models:
+    for scaler in ["none", "standard", "robust", "normalize", "power", "quantile"]:
         s = time.time()
+
         inertia_list = []
+        silhouette_list = []
         model = model_dict[model_](k=args.start_k)
+
+        if scaler == "none":
+            dataset = data.values.copy()
+        else:
+            dataset = rescaler(data.values, scaler)
+
+        if not os.path.exists(f"./graph/{model_}_{scaler}"):
+            os.makedirs(f"./graph/{model_}_{scaler}")
+
+        if scaler == "none":
+            dataset = data.values.copy()
+        else:
+            dataset = rescaler(data.values, scaler)
+
+        if not os.path.exists(f"./graph/{model_}_{scaler}"):
+            os.makedirs(f"./graph/{model_}_{scaler}")
 
         for i, k in enumerate(range(args.start_k, args.end_k + 1)):
             model.k = k
-            inertia_list.append(model.fit(dataset.values).inertia_)
-            silhouette_avg = get_silhouette(dataset.values, model.labels_)
+            inertia_list.append(model.fit(dataset).inertia_)
+            silhouette_list.append(get_silhouette(dataset, model.labels_))
 
             print(
-                "K : {:g}, Inertia : {:g}, Avg. Silhouette_Score : {:g}".format(
-                    k, inertia_list[-1], silhouette_avg
+                "{}, K : {:g}, Inertia : {:g}, Avg. Silhouette_Score : {:g}".format(
+                    scaler, k, inertia_list[-1], silhouette_list[-1]
                 )
             )
 
@@ -221,11 +245,25 @@ if __name__ == "__main__":
                 model.datas,
                 model.labels_,
                 model.k,
-                silhouette_avg,
+                silhouette_list[-1],
                 model.centroid_,
-                f"silhouette_{model.k}.png",
+                f"./graph/{model_}_{scaler}/silhouette_{model.k}.png",
             )
 
-        # plt.figure()
-        # plt.plot(list(range(args.start_k, args.end_k + 1)), inertia_list)
-        # plt.savefig(f"./{model_}.png")
+        plt.figure()
+        plt.plot(list(range(args.start_k, args.end_k + 1)), inertia_list, color="red")
+        plt.ylabel("Inertia")
+        plt.savefig(f"./graph/{model_}_{scaler}/inertia.png")
+        plt.clf()
+        plt.plot(list(range(args.start_k, args.end_k + 1)), silhouette_list, color="blue")
+        plt.ylabel("Silhouette")
+        plt.savefig(f"./graph/{model_}_{scaler}/silhouette.png")
+        plt.close()
+        fig, ax1 = plt.subplots()
+        ax1.plot(list(range(args.start_k, args.end_k + 1)), inertia_list, color="red")
+        ax1.set_ylabel("Inertia")
+        ax2 = ax1.twinx()
+        ax2.plot(list(range(args.start_k, args.end_k + 1)), silhouette_list, color="blue")
+        ax2.set_ylabel("Silhouette")
+        plt.savefig(f"./graph/{model_}_{scaler}/score.png")
+        plt.close()
