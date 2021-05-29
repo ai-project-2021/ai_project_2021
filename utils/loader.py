@@ -5,7 +5,6 @@ from sklearn.preprocessing import LabelEncoder
 from imblearn.over_sampling import RandomOverSampler, SMOTE
 import datetime as dt
 from functools import reduce
-from tqdm import tqdm
 
 
 DEBUG = True
@@ -47,11 +46,17 @@ def get_raw_data():
         axis=1,  # By Column
     )
 
+    customer_product_unique = (
+        data[["Customer Id", "Product Name"]]
+        .drop_duplicates()
+        .groupby(["Customer Id"])
+        .agg({"Product Name": lambda x: len(x)})
+        .reset_index()
+    )
+
     # 1가지 종류의 상품만을 구입한 사람은 Product Recomandation이 어렵기 때문에 Filtering
-    customer_filter = [
-        c_id
-        for c_id in data["Customer Id"].unique()
-        if len(data[data["Customer Id"] == c_id]["Product Name"].unique()) != 1
+    customer_filter = customer_product_unique[customer_product_unique["Product Name"] != 1][
+        "Customer Id"
     ]
 
     return data[data["Customer Id"].isin(customer_filter)]
