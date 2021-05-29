@@ -204,66 +204,65 @@ if __name__ == "__main__":
 
     data = get_rfm_data()[["R_Value", "F_Value", "M_Value"]]
     model_dict = {"KMeans": KMeans, "KMedians": KMedians, "KMedoids": KMedoids}
-    model_ = "KMeans"
-    # for model_ in args.models:
 
-    for scaler in ["none", "standard", "robust", "normalize", "power", "quantile"]:
-        s = time.time()
+    for model_ in args.models:
+        for scaler in ["none", "standard", "robust", "normalize", "power", "quantile"]:
+            s = time.time()
 
-        inertia_list = []
-        silhouette_list = []
-        model = model_dict[model_](k=args.start_k)
+            inertia_list = []
+            silhouette_list = []
+            model = model_dict[model_](k=args.start_k)
 
-        if scaler == "none":
-            dataset = data.values.copy()
-        else:
-            dataset = rescaler(data.values, scaler)
+            if scaler == "none":
+                dataset = data.values.copy()
+            else:
+                dataset = rescaler(data.values, scaler)
 
-        if not os.path.exists(f"./graph/{model_}_{scaler}"):
-            os.makedirs(f"./graph/{model_}_{scaler}")
+            if not os.path.exists(f"./graph/{model_}_{scaler}"):
+                os.makedirs(f"./graph/{model_}_{scaler}")
 
-        if scaler == "none":
-            dataset = data.values.copy()
-        else:
-            dataset = rescaler(data.values, scaler)
+            if scaler == "none":
+                dataset = data.values.copy()
+            else:
+                dataset = rescaler(data.values, scaler)
 
-        if not os.path.exists(f"./graph/{model_}_{scaler}"):
-            os.makedirs(f"./graph/{model_}_{scaler}")
+            if not os.path.exists(f"./graph/{model_}_{scaler}"):
+                os.makedirs(f"./graph/{model_}_{scaler}")
 
-        for i, k in enumerate(range(args.start_k, args.end_k + 1)):
-            model.k = k
-            inertia_list.append(model.fit(dataset).inertia_)
-            silhouette_list.append(get_silhouette(dataset, model.labels_))
+            for i, k in enumerate(range(args.start_k, args.end_k + 1)):
+                model.k = k
+                inertia_list.append(model.fit(dataset).inertia_)
+                silhouette_list.append(get_silhouette(dataset, model.labels_))
 
-            print(
-                "{}, K : {:g}, Inertia : {:g}, Avg. Silhouette_Score : {:g}".format(
-                    scaler, k, inertia_list[-1], silhouette_list[-1]
+                print(
+                    "{}, K : {:g}, Inertia : {:g}, Avg. Silhouette_Score : {:g}".format(
+                        scaler, k, inertia_list[-1], silhouette_list[-1]
+                    )
                 )
-            )
 
-            silhouette_plot(
-                model.datas,
-                model.labels_,
-                model.k,
-                silhouette_list[-1],
-                model.centroid_,
-                f"./graph/{model_}_{scaler}/silhouette_{model.k}.png",
-            )
+                silhouette_plot(
+                    model.datas,
+                    model.labels_,
+                    model.k,
+                    silhouette_list[-1],
+                    model.centroid_,
+                    f"./graph/{model_}_{scaler}/silhouette_{model.k}.png",
+                )
 
-        plt.figure()
-        plt.plot(list(range(args.start_k, args.end_k + 1)), inertia_list, color="red")
-        plt.ylabel("Inertia")
-        plt.savefig(f"./graph/{model_}_{scaler}/inertia.png")
-        plt.clf()
-        plt.plot(list(range(args.start_k, args.end_k + 1)), silhouette_list, color="blue")
-        plt.ylabel("Silhouette")
-        plt.savefig(f"./graph/{model_}_{scaler}/silhouette.png")
-        plt.close()
-        fig, ax1 = plt.subplots()
-        ax1.plot(list(range(args.start_k, args.end_k + 1)), inertia_list, color="red")
-        ax1.set_ylabel("Inertia")
-        ax2 = ax1.twinx()
-        ax2.plot(list(range(args.start_k, args.end_k + 1)), silhouette_list, color="blue")
-        ax2.set_ylabel("Silhouette")
-        plt.savefig(f"./graph/{model_}_{scaler}/score.png")
-        plt.close()
+            plt.figure()
+            plt.plot(list(range(args.start_k, args.end_k + 1)), inertia_list, color="red")
+            plt.ylabel("Inertia")
+            plt.savefig(f"./graph/{model_}_{scaler}/inertia.png")
+            plt.clf()
+            plt.plot(list(range(args.start_k, args.end_k + 1)), silhouette_list, color="blue")
+            plt.ylabel("Silhouette")
+            plt.savefig(f"./graph/{model_}_{scaler}/silhouette.png")
+            plt.close()
+            fig, ax1 = plt.subplots()
+            ax1.plot(list(range(args.start_k, args.end_k + 1)), inertia_list, color="red")
+            ax1.set_ylabel("Inertia")
+            ax2 = ax1.twinx()
+            ax2.plot(list(range(args.start_k, args.end_k + 1)), silhouette_list, color="blue")
+            ax2.set_ylabel("Silhouette")
+            plt.savefig(f"./graph/{model_}_{scaler}/score.png")
+            plt.close()
