@@ -1,12 +1,15 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 from tqdm import tqdm, trange
-import os
-import sys
 import pickle as pkl
 from numba import njit
 
 from utils import get_rfm_data
+from utils.metrics import inertia
+from sklearn.metrics import silhouette_score
+
+
+DEBUG = True
 
 
 @njit
@@ -78,18 +81,16 @@ class CURE:
 
         # # Initialization
         numPts = len(data)
+        self.data = data
 
-        Clusters = [
-            Cluster(idPoint, data[idPoint, :])
-            for idPoint in trange(len(data), desc="init clusters")
-        ]
+        Clusters = [Cluster(idPoint, data[idPoint, :]) for idPoint in range(len(data))]
 
         dist_mat = np.vstack([col_dist(data, data[i, :]) for i in range(len(data))])
         cluster_distance = np.array(np.triu(dist_mat, 1), dtype="float")
         cluster_distance[cluster_distance == 0] = float("inf")
         indexes = list(range(numPts))
 
-        for _ in trange(numPts, self.k, -1, desc="cluster count"):
+        for _ in trange(numPts, self.k, -1, desc="Update Centroids"):
             # Find a pair of closet clusters
 
             @njit
@@ -124,17 +125,40 @@ class CURE:
             cluster_distance[:, clu_dst] = float("inf")
             indexes.remove(clu_dst)
 
+        self.cluster_distance = cluster_distance[indexes][:, indexes]
+        self.clusters = [Clusters[i] for i in sorted(list(indexes))]
+        self.cluster_centers_ = np.array([c.center for c in Clusters])
+        self.indices = [c.index[0] for c in self.clusters]
+
         # Generate sample labels
         self.labels_ = np.zeros((numPts))
-        for i, c in enumerate(Clusters, 1):
-            self.labels_[c.index] = i
+        for c in self.clusters:
+            self.labels_[c.index] = c.index[0]
 
-        with open("./cure.pkl", "w") as f:
+        label2Idx = {c.index[0]: i for i, c in enumerate(self.clusters)}
+        self.inertia_ = inertia(
+            self.data,
+            np.array([label2Idx[v] for v in self.labels_]),
+            self.cluster_centers_,
+        )
+
+        with open("./cure_5_0.1_20.pkl", "wb") as f:
             pkl.dump(self, f)
         return self
 
     def fit_predict(self, data):
         return self.fit(data).labels_
+
+
+    def get_inertia(self):
+        label2Idx = {c.index[0]: i for i, c in enumerate(self.clusters)}
+        self.inertia_ = inertia(
+            self.data,
+            np.array([label2Idx[v] for v in self.labels_]),
+            self.cluster_centers_,
+        )
+
+        return self.inertia_, silhouette_score(self.data, self.labels_)
 
 
 if __name__ == "__main__":
