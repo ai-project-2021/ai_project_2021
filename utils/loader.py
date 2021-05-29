@@ -2,12 +2,32 @@ from os import dup
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import (
+    StandardScaler,
+    RobustScaler,
+    Normalizer,
+    PowerTransformer,
+    QuantileTransformer,
+)
 from imblearn.over_sampling import RandomOverSampler, SMOTE
+
 import datetime as dt
 from functools import reduce
 
 
 DEBUG = True
+
+
+def rescaler(data, scaler=None):
+    dic = {
+        "standard": StandardScaler,
+        "robust": RobustScaler,
+        "normalize": Normalizer,
+        "power": PowerTransformer,
+        "quantile": QuantileTransformer,
+    }
+    assert scaler in dic.keys()
+    return dic[scaler]().fit_transform(data)
 
 
 def get_raw_data():
@@ -20,7 +40,7 @@ def get_raw_data():
         "dataset/DataCoSupplyChainDataset.csv",
         header=0,
         encoding="unicode_escape",
-    )  # CSV to DataFrame
+    )
 
     dataset["Customer Full Name"] = dataset["Customer Fname"].astype(str) + dataset[
         "Customer Lname"
@@ -155,7 +175,7 @@ def get_rfm_data():
     )
 
     if DEBUG:
-        print("RFM\n", rfm)
+        print(rfm.describe())
 
     return rfm
 
@@ -244,4 +264,5 @@ def get_order(key_):
 
 
 if __name__ == "__main__":
-    get_order(key_="quantity")
+    # get_order(key_="quantity")
+    get_rfm_data()
