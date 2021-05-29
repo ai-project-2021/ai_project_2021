@@ -12,7 +12,6 @@ def line_graph(X, y, _path):
 
 
 def silhouette_plot(X, y, k, silhouette_score, centers, _path):
-
     fig, (ax1, ax2) = plt.subplots(1, 2)
     fig.set_size_inches(18, 7)
     ax1.set_xlim([-0.1, 1])
@@ -86,3 +85,4 @@ def silhouette_plot(X, y, k, silhouette_score, centers, _path):
         fontweight="bold",
     )
     plt.savefig(_path)
+    plt.close()
