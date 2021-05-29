@@ -4,15 +4,11 @@ from utils.metrics import inertia
 import argparse
 import time
 import matplotlib.pyplot as plt
-import matplotlib.cm as cm
-from sklearn.metrics import (
-    silhouette_samples,
-    silhouette_score,
-)  # Clustering의 품질을 정량적으로 평가해주는 지표. [0-1] 1에 가까울 수록 우수한 품질
-
-from sklearn_extra.cluster import KMedoids as km
 from sklearn.metrics.pairwise import pairwise_distances
-from sklearn.utils import check_array, check_random_state
+
+# Clustering의 품질을 정량적으로 평가해주는 지표. [0-1] 1에 가까울 수록 우수한 품질
+from utils.metrics import get_silhouette
+from utils.plot import silhouette_plot
 
 
 class KMeans:
@@ -33,7 +29,7 @@ class KMeans:
             np.eye(k): 데이터와 각 클러스터 사이의 유클리드 거리를 계산하여, 가장 거리가 작은 값을 가진 클러스터에 데이터를 할당시킨다.
         """
         _clu = lambda c: np.array(np.sum((self.datas - c) ** 2, axis=1) ** 0.5)
-        return np.eye(self.k)[np.array([_clu(c) for c in self.centriod_]).argmin(axis=0)]
+        return np.eye(self.k)[np.array([_clu(c) for c in self.centroid_]).argmin(axis=0)]
 
     def fit(self, datas):
         """초기 클러스터의 중심을 랜덤하게 초기화 해주는 initialization 과정과, 새로운 군집 변화에 대하여 클러스터의 중심을 다시 계산하는 centroid Update 과정을 수행하는 함수이다.
@@ -48,7 +44,7 @@ class KMeans:
         """
         self.datas = datas
         # 초기 cluster의 중심은 numpy random.choice 함수를 이용하여 data 크기 범위 중 k개로 랜덤하게 초기화된다.
-        self.centriod_ = datas[np.random.choice(range(len(datas)), self.k)].astype("float32")
+        self.centroid_ = datas[np.random.choice(range(len(datas)), self.k)].astype("float32")
         # 갱신되기 전 군집의 데이터 별 레이블을 저장한다.
         prev_labels = np.zeros((len(datas)), dtype=int)
 
@@ -60,15 +56,17 @@ class KMeans:
                 break
             # 레이블 값 차이가 있을 경우, 기존 레이블 값을 prev_labels에 저장하고 새로운 클러스터 중심(centroid) 계산
             prev_labels = labels.copy()
-            self.centriod_ = [
-                # K Means clustering에서 self.f == self.mean , 클러스터 내 모든 데이터 들의 평균
-                self.f(datas[np.where(cluster[:, p] == 1)], axis=0)
-                for p in range(self.k)
-            ]
+            self.centroid_ = np.array(
+                [
+                    # K Means clustering에서 self.f == self.mean , 클러스터 내 모든 데이터 들의 평균
+                    self.f(datas[np.where(cluster[:, p] == 1)], axis=0)
+                    for p in range(self.k)
+                ]
+            )
 
         self.labels_ = labels
         # 갱신이 종료되면 레이블 저장 후 최적의 k값을 계산하기 위한 inertia 값 계산
-        self.inertia_ = inertia(datas, labels, self.centriod_)
+        self.inertia_ = inertia(datas, labels, self.centroid_)
         return self
 
     def fit_predict(self, datas):
@@ -102,7 +100,7 @@ class KMedians(KMeans):
         """
         # 맨해튼 거리는 좌표간 차이의 절댓값이다.
         _clu = lambda c: np.array(np.sum(abs(self.datas - c), axis=1))
-        return np.eye(self.k)[np.array([_clu(c) for c in self.centriod_]).argmin(axis=0)]
+        return np.eye(self.k)[np.array([_clu(c) for c in self.centroid_]).argmin(axis=0)]
 
 
 class KMedoids:
@@ -128,9 +126,9 @@ class KMedoids:
         Returns:
             np.argmin(dist) : data간 사이의 유클리드 거리를 가장 작게 만드는 object들을 medoid로 반환한다.
         """
-        return np.argmin(self.dist(self.datas[:, None, :], self.datas[None, indices, :]), axis=1)
+        return np.argmin(self.dist_(self.datas[:, None, :], self.datas[None, indices, :]), axis=1)
 
-    def dist(self, xa, xb):
+    def dist_(self, xa, xb):
         """두 데이터  xa, xb 사이의 Euclidean distance를 계산해주는 함수이다.
 
         Args:
@@ -172,21 +170,21 @@ class KMedoids:
         """
         self.datas = datas
 
-        self.dist = pairwise_distances(self.datas, metric="euclidean")
+        self.distance = pairwise_distances(self.datas, metric="euclidean")
         # medoids = check_random_state(0).choice(len(D), self.k)
-        medoids_indices = np.argpartition(np.sum(self.dist, axis=1), self.k - 1)[: self.k]
+        medoids_indices = np.argpartition(np.sum(self.distance, axis=1), self.k - 1)[: self.k]
 
         for _ in range(self.max_iters):
             prev_medoids_indices = np.copy(medoids_indices)
-            labels = np.argmin(self.dist[medoids_indices, :], axis=0)
+            labels = np.argmin(self.distance[medoids_indices, :], axis=0)
             self._update_medoids(labels, medoids_indices)
 
             if np.all(prev_medoids_indices == medoids_indices):
                 break
 
         self.labels_ = labels
-        self.medoids_ = self.datas[medoids_indices]
-        self.inertia_ = inertia(datas, self.labels_, self.medoids_)
+        self.centroid_ = self.datas[medoids_indices]
+        self.inertia_ = inertia(datas, self.labels_, self.centroid_)
         return self
 
     def fit_predict(self, X):
@@ -194,8 +192,8 @@ class KMedoids:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="K-Centriod Arguments")
-    parser.add_argument("--models", "-m", type=str, action="append", help="K-Centriod Method Type")
+    parser = argparse.ArgumentParser(description="K-centroid Arguments")
+    parser.add_argument("--models", "-m", type=str, action="append", help="K-centroid Method Type")
     parser.add_argument("--start_k", "-s", type=int)
     parser.add_argument("--end_k", "-e", type=int)
     args = parser.parse_args()
@@ -207,22 +205,19 @@ if __name__ == "__main__":
         s = time.time()
         inertia_list = []
         model = model_dict[model_](k=args.start_k)
-        # model = km(n_clusters=args.start_k)
-        n_cols = args.end_k - args.start_k + 1
-        fig, axs = plt.subplots(figsize=(4 * n_cols, 4), nrows=1, ncols=n_cols)
 
         for i, k in enumerate(range(args.start_k, args.end_k + 1)):
-            e = time.time()
-            model.n_clusters = k
             model.k = k
             inertia_list.append(model.fit(dataset.values).inertia_)
-            silhouette_avg = silhouette_score(dataset.values, model.labels_)
+            silhouette_avg = get_silhouette(dataset.values, model.labels_)
+
             print(
                 "K : {:g}, Inertia : {:g}, Avg. Silhouette_Score : {:g}".format(
                     k, inertia_list[-1], silhouette_avg
                 )
             )
 
-        plt.figure()
-        plt.plot(list(range(args.start_k, args.end_k + 1)), inertia_list)
-        plt.savefig(f"./{model_}.png")
+
+        # plt.figure()
+        # plt.plot(list(range(args.start_k, args.end_k + 1)), inertia_list)
+        # plt.savefig(f"./{model_}.png")
