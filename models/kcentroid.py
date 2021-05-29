@@ -217,6 +217,14 @@ if __name__ == "__main__":
                 )
             )
 
+            silhouette_plot(
+                model.datas,
+                model.labels_,
+                model.k,
+                silhouette_avg,
+                model.centroid_,
+                f"silhouette_{model.k}.png",
+            )
 
         # plt.figure()
         # plt.plot(list(range(args.start_k, args.end_k + 1)), inertia_list)
