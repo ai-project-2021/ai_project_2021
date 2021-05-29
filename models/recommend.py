@@ -45,6 +45,7 @@ class Recommendation:
             return 0
 
         denominator = sqrt(res_[2] - pow(res_[0], 2) / n) * sqrt(res_[3] - pow(res_[1], 2) / n)
+
         return 0 if denominator == 0 else (res_[4] - (res_[0] * res_[1]) / n) / denominator
 
     def computeNearestNeighbor(self, name):
@@ -54,9 +55,16 @@ class Recommendation:
         )
 
     def recommend(self, user):
-        nearest = self.computeNearestNeighbor(user)[: self.k]
+        nearest = self.computeNearestNeighbor(user)
+        print(nearest)
+        nearest = nearest[: self.k]
         userRatings = self.data[user]
         totalDistance = sum([dist_ for _, dist_ in nearest])
+        print(self.data[user])
+        for k in nearest:
+            print(self.data[k[0]])
+
+        print(totalDistance)
 
         recommendations = defaultdict(int)
         for name, weight in nearest:
@@ -72,12 +80,16 @@ class Recommendation:
 if __name__ == "__main__":
     import random
 
-    datas = get_order("all")
-    _id_list = [random.choice(list(datas.keys())) for _ in range(3)]
+    # datas = get_order("all")
 
-    for _type in ["quantity", "count", "all"]:
-        datas = get_order(_type)
-        model = Recommendation(datas)
+    # for _type in ["quantity", "count", "all"]:
+    datas = get_order("quantity")
+    # _id_list = [random.choice(list(datas.keys())) for _ in range(10)]
+    # _id_list = list(datas.keys())
+    _id_list = [1622]
+    model = Recommendation(datas)
 
-        for _id in _id_list:
-            print(model.recommend(_id))
+    print(_id_list)
+    for _id in _id_list:
+        print(_id)
+        print(model.recommend(_id))
