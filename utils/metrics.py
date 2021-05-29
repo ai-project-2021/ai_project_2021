@@ -1,4 +1,6 @@
 import numpy as np
+from scipy.spatial import distance_matrix
+import time
 
 
 def dist(X, y):
@@ -15,7 +17,7 @@ def dist(X, y):
 
 
 def inertia(features, labels, centriod):
-    return np.sum([np.sum(np.power((x - centriod[k]), 2)) for x, k in zip(features, labels)])
+    return np.sum(np.power((features - centriod[labels]), 2))
 
 
 def silhouette_score(models, range_k, datas):
@@ -33,13 +35,13 @@ def get_silhouette(X, labels):
     A = np.zeros((n))  # Intra Cluster
     B = np.zeros((n))  # Other Cluster
 
-    for i, (v_X, v_y) in enumerate(zip(X, labels)):
-        mask = np.zeros(X.shape[0], dtype=bool)
-        mask[np.where(labels == v_y)[0]] = True
-        mask[i] = False
-        A[i] = np.mean(dist(X[mask], v_X))
-        B[i] = np.min(
-            [np.mean(dist(X[np.where(labels == v)[0]], v_X)) for v in set(labels) if not v == v_y]
-        )
+    distance = distance_matrix(X, X)
+    label2Idx = {l: np.where(labels == l)[0] for l in np.unique(labels)}
+    distance[np.where(np.eye(n) == 1)] = 0
+    labels_ = set(labels)
+
+    for i, v in enumerate(labels):
+        A[i] = np.sum(distance[i, label2Idx[v]]) / (label2Idx[v].shape[0] - 1)
+        B[i] = np.min([np.mean(distance[i, label2Idx[v_]]) for v_ in labels_ if not v_ == v])
 
     return np.mean(np.nan_to_num((B - A) / np.maximum(A, B)))
