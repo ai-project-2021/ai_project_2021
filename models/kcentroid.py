@@ -7,7 +7,7 @@ from sklearn.metrics.pairwise import pairwise_distances
 
 # Clustering의 품질을 정량적으로 평가해주는 지표. [0-1] 1에 가까울 수록 우수한 품질
 from utils.metrics import get_silhouette
-from utils.plot import silhouette_plot, clustering_plot
+from utils.plot import silhouette_plot, clustering_plot, clustering_plot_all
 from utils.loader import rescaler
 import os
 
@@ -199,15 +199,19 @@ if __name__ == "__main__":
     parser.add_argument("--end_k", "-e", type=int)
     args = parser.parse_args()
 
-    data = get_rfm_data()[["R_Value", "F_Value", "M_Value"]]
+    data = get_rfm_data(rank=True)[["R_Value", "F_Value", "M_Value"]]
     model_dict = {"KMeans": KMeans, "KMedian": KMedian, "KMedoid": KMedoid}
 
+    inertia_matrix = []
+    silhouette_matrix = []
+    scaler_list = ["none", "standard", "robust", "normalize", "power", "quantile"]
     for model_ in args.models:
-        for scaler in ["none"]:  # ["none", "standard", "robust", "normalize", "power", "quantile"]:
+        for scaler in scaler_list:
             s = time.time()
 
             inertia_list = []
             silhouette_list = []
+
             model = model_dict[model_](k=args.start_k)
 
             if scaler == "none":
@@ -252,3 +256,14 @@ if __name__ == "__main__":
                 inertia_list,
                 silhouette_list,
             )
+
+            inertia_matrix.append([v for v in inertia_list])
+            silhouette_matrix.append([v for v in silhouette_list])
+
+        clustering_plot_all(
+            f"./graph/{model_}_none/",
+            list(range(args.start_k, args.end_k + 1)),
+            inertia_matrix,
+            silhouette_matrix,
+            scaler_list,
+        )
