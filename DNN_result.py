@@ -4,7 +4,7 @@ import tensorflow as tf
 import os
 import matplotlib.pyplot as plt
 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 
 from keras import backend as K
 from keras.models import Sequential
@@ -20,6 +20,8 @@ from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import f1_score
 from utils.loader import get_fraud
 from re import X
+import pickle as pkl
+
 
 def f1(y_true, y_pred):
     def recall(y_true, y_pred):
@@ -47,38 +49,72 @@ def f1(y_true, y_pred):
         predicted_positives = K.sum(K.round(K.clip(y_pred, 0, 1)))
         precision = true_positives / (predicted_positives + K.epsilon())
         return precision
+
     precision = precision(y_true, y_pred)
     recall = recall(y_true, y_pred)
-    return 2*((precision*recall)/(precision+recall+K.epsilon()))
+    return 2 * ((precision * recall) / (precision + recall + K.epsilon()))
+
 
 class DNN_model:
-
-    def __init__(self,X,y):
+    def __init__(self, X, y):
         """Create Dataset
         원본 데이터를 불러옵니다.
         불러 온 데이터로부터 training set과 test set을 생성합니다.
         효과적으로 학습할 수 있도록 데이터셋을 scaling 합니다.
 
-        model 생성에 이용될 input layer, hidden layer, 그리고 output layer의 형태를 결정하고, 
-        마지막 layer에 이용할 activation 함수와 dropout 확률의 비율을 설정합니다. 
+        model 생성에 이용될 input layer, hidden layer, 그리고 output layer의 형태를 결정하고,
+        마지막 layer에 이용할 activation 함수와 dropout 확률의 비율을 설정합니다.
 
         """
         self.k_fold = StratifiedKFold(n_splits=5)
         self.get_data(X, y)
         self.n_in = self.X_train.shape[1]
         self.n_hiddens = [20, 20]
-        self.n_out = 1 
-        self.activation = 'sigmoid'
+        self.n_out = self.y_train.shape[1]
+        self.activation = "sigmoid"
         self.p_keep = 0.4
+
+        self.batch_size = 512
+        self.epochs = 2000
+        self.class_weights = {1: 0.9, 0: 0.1}
+        self.callbacks = EarlyStopping(monitor="f1", patience=50, verbose=1)
+
         self.dnn_model = self.create_model()
 
     def get_data(self, X, y):
         sc = StandardScaler()
-        X=sc.fit_transform(X)
+        X = sc.fit_transform(X)
 
-        self.X_train_, self.X_test, self.y_train_, self.y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y) 
-        self.X_train, self.X_val, self.y_train, self.y_val = train_test_split(self.X_train_, self.y_train_, test_size=0.2, stratify=self.y_train_, random_state=1) 
-        
+        self.X_train_, self.X_test, self.y_train_, self.y_test = train_test_split(
+            X, y, test_size=0.2, random_state=42, stratify=y
+        )
+        self.X_train, self.X_val, self.y_train, self.y_val = train_test_split(
+            self.X_train_, self.y_train_, test_size=0.2, stratify=self.y_train_, random_state=1
+        )
+
+    def train(self):
+        self.hist = self.dnn_model.fit(
+            self.X_train,
+            self.y_train,
+            batch_size=self.batch_size,
+            epochs=self.epochs,
+            callbacks=self.callbacks,
+            class_weight=self.class_weights,
+            validation_data=(self.X_val, self.y_val),
+            verbose=1,
+        )
+        self.loss_graph()
+        self.result_graph()
+
+    def eval_test(self):
+        return self.dnn_model.evaluate(self.X_test, self.y_test)
+
+    def eval_val(self):
+        return self.dnn_model.evaluate(self.X_val, self.y_val)
+
+    def predict(self):
+        return self.dnn_model.predict(self.X_test)
+
     def kfold_train(self):
         return cross_val_score(self.dnn_model, self.X_train, self.y_train, cv=self.k_fold).mean()
 
@@ -91,8 +127,6 @@ class DNN_model:
     def create_model(self):
         """DNN model을 구현하는 함수입니다.
 
-
-
         Returns:
             model: Deep Neural Network model을 반환합니다.
         """
@@ -100,80 +134,148 @@ class DNN_model:
         model.add(BatchNormalization())
 
         for i, input_dim in enumerate([self.n_in] + self.n_hiddens[:-1]):
-            model.add(Dense(input_dim = input_dim, units = self.n_hiddens[i], kernel_initializer='random_uniform'))
-            model.add(Activation('relu'))
+            model.add(
+                Dense(
+                    input_dim=input_dim,
+                    units=self.n_hiddens[i],
+                    kernel_initializer="random_uniform",
+                )
+            )
+            model.add(Activation("relu"))
             model.add(Dropout(self.p_keep))
 
-        model.add(Dense(units = self.n_out))
+        model.add(Dense(units=self.n_out))
         model.add(Activation(self.activation))
 
-        opt = keras.optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, epsilon=None, decay=1e-6, amsgrad=False)
-        model.compile(optimizer=opt, loss='binary_crossentropy', metrics=['accuracy', f1, tf.keras.metrics.Precision(), tf.keras.metrics.Recall()])
+        opt = keras.optimizers.Adam(
+            learning_rate=0.001, beta_1=0.9, beta_2=0.999, epsilon=None, decay=1e-6, amsgrad=False
+        )
+        model.compile(
+            optimizer=opt,
+            loss="binary_crossentropy",
+            metrics=["accuracy", f1, tf.keras.metrics.Precision(), tf.keras.metrics.Recall()],
+        )
         return model
 
     def loss_graph(self):
         fig, loss_ax = plt.subplots(figsize=(15, 5))
-        loss_ax.plot(hist.history['loss'], 'y', label = 'train_loss')   
-        loss_ax.plot(hist.history['val_loss'], 'r', label = 'val loss')
+        loss_ax.plot(self.hist.history["loss"], "y", label="train_loss")
+        loss_ax.plot(self.hist.history["val_loss"], "r", label="val loss")
 
-        loss_ax.set_xlabel('epoch')
-        loss_ax.set_ylabel('loss')
+        loss_ax.set_xlabel("epoch")
+        loss_ax.set_ylabel("loss")
 
-        loss_ax.legend(loc='upper left')
+        loss_ax.legend(loc="upper left")
 
         plt.show()
 
     def result_graph(self):
         fig, result_ax = plt.subplots(figsize=(15, 5))
-        result_ax.plot(hist.history['precision_1'], 'y', label='precision')
-        result_ax.plot(hist.history['recall_1'], 'r', label='recall')
-        result_ax.plot(hist.history['f1'], 'b', label='f1')
+        result_ax.plot(self.hist.history["precision_1"], "y", label="precision")
+        result_ax.plot(self.hist.history["recall_1"], "r", label="recall")
+        result_ax.plot(self.hist.history["f1"], "b", label="f1")
 
-        result_ax.set_xlabel('epoch')
-        result_ax.set_ylabel('y')
+        result_ax.set_xlabel("epoch")
+        result_ax.set_ylabel("y")
 
-        result_ax.legend(loc='upper left')
+        result_ax.legend(loc="upper left")
 
         plt.show()
 
-if __name__ == "__main__" :
-    """[summary]
-    """
+
+def load_result():
+    model = load_model("dnn_model.h5", custom_objects={"f1": f1})
+    model_params = pkl.load(open("dnn_model_params.pkl", "rb"))
+
+    X_test = model_params["X_test"]
+    y_test = model_params["y_test"]
+    X_val = model_params["X_val"]
+    y_val = model_params["y_val"]
+    n_hiddens = model_params["n_hiddens"]
+
+    test_evaluate = model.evaluate(X_test, y_test)
+    val_evaluate = model.evaluate(X_val, y_val)
+
+    y_pred = model.predict(X_test).round()
+    cm = confusion_matrix(y_test, y_pred)
+
+    print("test evaluate : ", test_evaluate)
+    print("test loss : ", test_evaluate[0])
+    print("test accuracy : ", test_evaluate[1])
+    print("test f1 : ", test_evaluate[2])
+    print("val evaluate : ", val_evaluate)
+    print("val loss : ", val_evaluate[0])
+    print("val accuracy : ", val_evaluate[1])
+    print("val f1 : ", val_evaluate[2])
+
+    print(classification_report(y_test, y_pred))
+    print(cm)
+    print(f1_score(y_test, y_pred))
+    print("hidden_layer 개수: ", n_hiddens)
+
+
+if __name__ == "__main__":
+    """[summary]"""
     X, y = get_fraud(sampling="smote")
     n = DNN_model(X=X, y=y)
-    model = n.dnn_model
 
-    batch_size = 512
-    epochs = 2000
-    class_weights = {1: 0.9, 0: 0.1}
-    callbacks = EarlyStopping(monitor='f1', patience=50, verbose=1)
-    
-    hist = model.fit(n.X_train, n.y_train, batch_size=batch_size, epochs=epochs, callbacks=callbacks, class_weight=class_weights, validation_data=(n.X_val, n.y_val), verbose=1)
-    
+    # batch_size = 512
+    # epochs = 2000
+    # class_weights = {1: 0.9, 0: 0.1}
+    # callbacks = EarlyStopping(monitor="f1", patience=50, verbose=1)
+
+    # hist = model.fit(
+    #     n.X_train,
+    #     n.y_train,
+    #     batch_size=batch_size,
+    #     epochs=epochs,
+    #     callbacks=callbacks,
+    #     class_weight=class_weights,
+    #     validation_data=(n.X_val, n.y_val),
+    #     verbose=1,
+    # )
+
     # train_evaluate = model.evaluate(n.X_train, n.y_train)
-    test_evaluate = model.evaluate(n.X_test, n.y_test)
-    val_evaluate = model.evaluate(n.X_val, n.y_val)
+    # test_evaluate = model.evaluate(n.X_test, n.y_test)
+    # val_evaluate = model.evaluate(n.X_val, n.y_val)
 
-    print('accuracy for Test set is', test_evaluate)
-    print('accuracy for Val set is', val_evaluate)
+    n.train()
 
-    y_pred = model.predict(n.X_test)
-    cm = confusion_matrix(n.y_test, y_pred.round())
+    test_evaluate = n.eval_test()
+    val_evaluate = n.eval_val()
 
-    model.save("dnn_model.h5")
-    model = load_model('dnn_model.h5', custom_objects={"f1":f1})
-    print('test evaluate : ', test_evaluate)
-    print('test loss : ', test_evaluate[0])
-    print('test accuracy : ', test_evaluate[1])
-    print('test f1 : ', test_evaluate[2])
-    print('val evaluate : ', val_evaluate)
-    print('val loss : ', val_evaluate[0])
-    print('val accuracy : ', val_evaluate[1])
-    print('val f1 : ', val_evaluate[2])
+    print("accuracy for Test set is", test_evaluate)
+    print("accuracy for Val set is", val_evaluate)
 
-    print(classification_report(n.y_test, y_pred.round()))
-    print(cm)
-    print(f1_score(n.y_test, y_pred.round()))
-    print('hidden_layer 개수: ', n.n_hiddens)
+    n.dnn_model.save("dnn_model.h5")
+    with open("dnn_model_params.pkl", "wb") as f:
+        pkl.dump(
+            {
+                "X_test": n.X_test,
+                "y_test": n.y_test,
+                "X_val": n.X_val,
+                "y_val": n.y_val,
+                "n_hiddens": n.n_hiddens,
+            },
+            f,
+        )
 
-    
+    load_result()
+
+    # model = load_model("dnn_model.h5", custom_objects={"f1": f1})
+    # print("test evaluate : ", test_evaluate)
+    # print("test loss : ", test_evaluate[0])
+    # print("test accuracy : ", test_evaluate[1])
+    # print("test f1 : ", test_evaluate[2])
+    # print("val evaluate : ", val_evaluate)
+    # print("val loss : ", val_evaluate[0])
+    # print("val accuracy : ", val_evaluate[1])
+    # print("val f1 : ", val_evaluate[2])
+
+    # y_pred = model.predict(n.X_test)
+    # cm = confusion_matrix(n.y_test, y_pred.round())
+
+    # print(classification_report(n.y_test, y_pred.round()))
+    # print(cm)
+    # print(f1_score(n.y_test, y_pred.round()))
+    # print("hidden_layer 개수: ", n.n_hiddens)
