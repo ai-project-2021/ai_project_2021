@@ -11,7 +11,7 @@ import time
 
 from utils import get_rfm_data
 from utils.metrics import inertia, get_silhouette
-from utils.plot import silhouette_plot, clustering_plot
+from utils.plot import silhouette_plot, clustering_plot, clustering_plot_all
 from utils.loader import rescaler
 from matplotlib import pyplot as plt
 import os
@@ -118,7 +118,12 @@ if __name__ == "__main__":
     data = get_rfm_data()[["R_Value", "F_Value", "M_Value"]]
     model = FuzzyKMeans(k=3, m=2, max_iter=100, random_state=0, threshold=1e-6)
 
-    for scaler in ["none"]:  # ["none", "standard", "robust", "normalize", "power", "quantile"]:
+    inertia_matrix = []
+    silhouette_matrix = []
+
+    scaler_list = ["none", "standard", "robust", "normalize", "power", "quantile"]
+
+    for scaler in scaler_list:
         s = time.time()
 
         inertia_list = []
@@ -158,3 +163,14 @@ if __name__ == "__main__":
             inertia_list,
             silhouette_list,
         )
+
+        inertia_matrix.append([v for v in inertia_list])
+        silhouette_matrix.append([v for v in silhouette_list])
+
+    clustering_plot_all(
+        base_dir,
+        list(range(args.start_k, args.end_k + 1)),
+        inertia_matrix,
+        silhouette_matrix,
+        scaler_list,
+    )
