@@ -8,6 +8,8 @@ from sklearn.model_selection import StratifiedKFold, GridSearchCV
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import cross_val_score, cross_val_predict
 from sklearn.metrics import confusion_matrix, classification_report, f1_score, make_scorer
+from sklearn.decomposition import PCA
+from sklearn.feature_selection import RFE
 from utils import get_fraud
 
 
@@ -24,8 +26,8 @@ class RFClassifier:
         self.model_params = dict()
         self.model_params["n_estimators"] = 100
         self.model_params["oob_score"] = True
-        self.model_params["max_depth"] = 30
-        self.model_params["min_samples_leaf"] = 4
+        self.model_params["max_depth"] = 10
+        self.model_params["min_samples_leaf"] = 8
         self.model_params["min_samples_split"] = 8
         self.model_params["max_features"] = "sqrt"
         self.model_params["random_state"] = 123456
@@ -77,8 +79,8 @@ class RFClassifier:
     def gridSearch(self):
         f1 = make_scorer(f1_score, average="macro")
         self.param_grid = {
-            "n_estimators": [10, 50, 100],
-            "max_depth": [4, 6, 8, 10],
+            "n_estimators": [10, 20, 30, 50],
+            "max_depth": [2, 4, 6, 8, 10],
             "min_samples_leaf": [8, 12, 18],
             "min_samples_split": [8, 16, 20],
         }
@@ -109,8 +111,34 @@ class RFClassifier:
 
 if __name__ == "__main__":
     X, y = get_fraud()
+    # X = X[["Type", "late_delivery"]]
     model = RFClassifier(X=X, y=y)
     print(model.train())
     print(model.test())
-    print(classification_report(model.y_test, model.predict(model.X_test)))
-    print(confusion_matrix(model.y_test, model.predict(model.X_test)))
+    # best_params, model.clf = model.gridSearch()
+    # print(classification_report(model.y_train, model.predict(model.X_train)))
+    # print(confusion_matrix(model.y_train, model.predict(model.X_train)))
+    # print(classification_report(model.y_test, model.predict(model.X_test)))
+    # print(confusion_matrix(model.y_test, model.predict(model.X_test)))
+
+    # rfe = RFE(model.clf, 10)
+    # fit = rfe.fit(X, y)
+    # print(fit.n_features_, fit.support_, fit.ranking_)
+    for n in range(10, 2, -1):
+        rfe = RFE(model.clf, 10)
+        fit = rfe.fit(X, y)
+        model = RFClassifier(X=X.iloc[:, fit.support_], y=y)
+        model.train()
+        print(classification_report(model.y_test, model.predict(model.X_test)))
+        print(confusion_matrix(model.y_test, model.predict(model.X_test)))
+
+    #     print(fit.n_features_, fit.support_, fit.ranking_)
+    # print(classification_report(model.y_test, model.predict(model.X_test)))
+    # print(confusion_matrix(model.y_test, model.predict(model.X_test)))
+    # import matplotlib.pyplot as plt
+
+    # plt.figure()
+    # idx_ = model.clf.feature_importances_.argsort()
+    # plt.barh(model.features_names[idx_], model.clf.feature_importances_[idx_])
+    # plt.savefig("./graph/rf2.png")
+    # print(best_params)
