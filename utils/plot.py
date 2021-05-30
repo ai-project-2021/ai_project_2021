@@ -101,6 +101,7 @@ def clustering_plot(_path, X_range, inertia_list, silhouette_list):
             line -= 1
         else:
             break
+    line = 2 if line == 1 else line
     plt.axvline(x=line, color="red", linestyle="--")
     plt.ylabel("Silhouette")
     plt.savefig(os.path.join(_path, "silhouette.png"))
@@ -112,4 +113,21 @@ def clustering_plot(_path, X_range, inertia_list, silhouette_list):
     ax2.plot(X_range, silhouette_list, color="blue")
     ax2.set_ylabel("Silhouette")
     plt.savefig(os.path.join(_path, "score.png"))
+    plt.close()
+
+
+def clustering_plot(_path, X_range, inertia_matrix, silhouette_matrix, scaler_name):
+    ax = ["" for _ in scaler_name]
+    plt.figure()
+    for i, (inertia, scaler) in enumerate(zip(inertia_matrix, scaler_name)):
+        plt.plot(X_range, inertia, color=f"c{i}", label=scaler)
+    plt.ylabel("Inertia")
+    plt.savefig(os.path.join(_path, "merge_inertia.png"))
+    plt.clf()
+
+    for i, (silhouette, scaler) in enumerate(zip(silhouette_matrix, scaler_name)):
+        plt.plot(X_range, silhouette, color=f"c{i}", label=scaler)
+    plt.axvline(y=0.5, color=f"c{len(scaler_name)}", linestyle="--")
+    plt.ylabel("Silhouette")
+    plt.savefig(os.path.join(_path, "merge_silhouette.png"))
     plt.close()
