@@ -19,11 +19,11 @@ class DTClassifier:
 
         self.model_params = dict()
         self.model_params["max_depth"] = 8
-        self.model_params["min_samples_leaf"] = 1
-        self.model_params["min_samples_split"] = 2
-        self.model_params["max_features"] = "auto"
+        self.model_params["min_samples_leaf"] = 8
+        self.model_params["min_samples_split"] = 12
+        self.model_params["max_features"] = "sqrt"
         self.model_params["random_state"] = 123456
-        self.model_params["criterion"] = "entropy"
+        self.model_params["criterion"] = "gini"
         self.model_params["class_weight"] = {
             label: (float(y[y != label].shape[0]) / float(y[y == label].shape[0])) ** 0.5
             for label in np.unique(y)
@@ -48,7 +48,7 @@ class DTClassifier:
         self.features_names = X.columns
 
         self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(
-            X, y, test_size=self.params["test_size"], stratify=y, random_state=123456
+            X, y, test_size=0.2, stratify=y, random_state=123456
         )
 
     def train(self):
@@ -104,6 +104,15 @@ class DTClassifier:
 
 
 if __name__ == "__main__":
-    X, y = get_fraud()
+    X, y, product_name = get_fraud()
     model = DTClassifier(X=X, y=y)
-    print(model.gridSearch())
+    model.train()
+    print(classification_report(model.y_test, model.predict(model.X_test)))
+    print(confusion_matrix(model.y_test, model.predict(model.X_test)))
+
+    _pred = model.predict(model.X_test)
+    indices = np.where(_pred == 1)
+    print(np.unique(np.array(product_name)).shape)
+    print(np.unique(np.array(product_name)[indices]).shape)
+    # print(_pred[indices].shape)
+    # print(model.gridSearch())

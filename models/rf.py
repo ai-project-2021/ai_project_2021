@@ -110,7 +110,7 @@ class RFClassifier:
 
 
 if __name__ == "__main__":
-    X, y = get_fraud()
+    X, y, product_name = get_fraud()
     # X = X[["Type", "late_delivery"]]
     model = RFClassifier(X=X, y=y)
     print(model.train())
@@ -125,12 +125,17 @@ if __name__ == "__main__":
     # fit = rfe.fit(X, y)
     # print(fit.n_features_, fit.support_, fit.ranking_)
     for n in range(10, 2, -1):
-        rfe = RFE(model.clf, 10)
+        rfe = RFE(model.clf, n)
         fit = rfe.fit(X, y)
         model = RFClassifier(X=X.iloc[:, fit.support_], y=y)
         model.train()
         print(classification_report(model.y_test, model.predict(model.X_test)))
         print(confusion_matrix(model.y_test, model.predict(model.X_test)))
+
+        _pred = model.predict(model.X_test)
+        indices = np.where(_pred == 1)
+        print(np.unique(np.array(product_name)).shape)
+        print(np.unique(np.array(product_name)[indices]).shape)
 
     #     print(fit.n_features_, fit.support_, fit.ranking_)
     # print(classification_report(model.y_test, model.predict(model.X_test)))
