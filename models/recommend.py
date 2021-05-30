@@ -24,6 +24,7 @@ class Recommendation:
         return np.dot(a, b) / np.linalg.norm(a) * np.linalg.norm(b)
 
     def pearson(self, rating1, rating2):
+
         res_ = np.array(
             [
                 [
@@ -56,22 +57,19 @@ class Recommendation:
 
     def recommend(self, user):
         nearest = self.computeNearestNeighbor(user)
-        print(nearest)
         nearest = nearest[: self.k]
         userRatings = self.data[user]
         totalDistance = sum([dist_ for _, dist_ in nearest])
-        print(self.data[user])
-        for k in nearest:
-            print(self.data[k[0]])
 
-        print(totalDistance)
 
         recommendations = defaultdict(int)
         for name, weight in nearest:
             neighborRatings = self.data[name]
             for artist in neighborRatings:
                 if artist in userRatings:
-                    recommendations[artist] += neighborRatings[artist] * (weight / totalDistance)
+                    recommendations[artist] += neighborRatings[artist] * (
+                        (weight / totalDistance) if totalDistance != 0 else 0
+                    )
                     # 추천 W = 자신의 W * (같은 상품을 산 피어슨 계수 / K 피어슨)
 
         return sorted(list(recommendations.items()), key=lambda row: -row[1])[: self.n]
@@ -84,9 +82,9 @@ if __name__ == "__main__":
 
     # for _type in ["quantity", "count", "all"]:
     datas = get_order("quantity")
-    # _id_list = [random.choice(list(datas.keys())) for _ in range(10)]
-    # _id_list = list(datas.keys())
-    _id_list = [1622]
+    _id_list = [random.choice(list(datas.keys())) for _ in range(10)]
+    _id_list = list(datas.keys())
+    # _id_list = [1622]
     model = Recommendation(datas)
 
     print(_id_list)
