@@ -1,6 +1,7 @@
 from os import dup
 import pandas as pd
 import numpy as np
+from pandas.core.reshape.reshape import get_dummies
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import (
     StandardScaler,
@@ -142,7 +143,7 @@ def get_rfm_score(rfm):
     return rfm[["Customer Id", "R_Value", "F_Value", "M_Value", "RFM_Total_Score"]]
 
 
-def get_rfm_data():
+def get_rfm_data(rank=False):
     """상품 주문 정보를 바탕으로 R/F/M Value를 계산하고, Customer Id과 RFM Value를 가지는 pd.DataFrame 반환
 
     Returns:
@@ -176,6 +177,10 @@ def get_rfm_data():
 
     if DEBUG:
         print(rfm.describe())
+
+    if rank:
+        rfm[["F_Value", "M_Value"]] = rfm[["F_Value", "M_Value"]].rank(method="dense")
+        rfm["R_Value"] = rfm["R_Value"].rank(method="dense", ascending=True)
 
     return rfm
 
@@ -214,6 +219,7 @@ def get_fraud(sampling=None, is_get_dummies=False):
     X, y = data.loc[:, data.columns != "fraud"], data["fraud"]
 
     categorical_columns = [c for c, dtype_ in zip(X.columns, X.dtypes) if dtype_ == "object"]
+
     product_names_ = X["Product Name"].tolist()
     if is_get_dummies == True:  # One-Hot Vector
         numeric_columns = [c for c, dtype_ in zip(X.columns, X.dtypes) if dtype_ != "object"]
@@ -223,13 +229,25 @@ def get_fraud(sampling=None, is_get_dummies=False):
         le = LabelEncoder()
         for col in categorical_columns:
             X[col] = le.fit_transform(X[col])
+        product_int_to_name = {
+            idx: name
+            for name, idx in pd.DataFrame({"name": product_names_, "idx": X["Product Name"]})
+            .drop_duplicates()
+            .values
+        }
 
-    if sampling == None:
-        return X, y, product_names_
-    elif sampling == "over":
-        return RandomOverSampler(random_state=42).fit_resample(X, y), product_names_
+    if sampling == "over":
+        X, y = RandomOverSampler(random_state=42).fit_resample(X, y)
+        if is_get_dummies == False:
+            product_names_ = [product_int_to_name[v] for v in X["Product Name"].values]
     elif sampling == "smote":
-        return SMOTE(random_state=42).fit_resample(X, y), product_names_
+        X, y = SMOTE(random_state=42).fit_resample(X, y)
+        if is_get_dummies == False:
+            product_names_ = [product_int_to_name[v] for v in X["Product Name"].values]
+
+    print(len(X), len(product_names_))
+
+    return X, y, product_names_
 
 
 def get_order(key_, customer_id_list=None):
@@ -265,4 +283,4 @@ def order_filter(order_data, customer_id_list):
 
 
 if __name__ == "__main__":
-    get_rfm_data()
+    get_fraud(is_sampling=True, is_get_dummies=True)
