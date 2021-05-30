@@ -1,5 +1,8 @@
 # Custom
 *.png
+storage/
+result/
+graph/
 
 # Dev
 .DS_Store
