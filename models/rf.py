@@ -24,10 +24,10 @@ class RFClassifier:
         self.get_data(X, y)
 
         self.model_params = dict()
-        self.model_params["n_estimators"] = 100
+        self.model_params["n_estimators"] = 50
         self.model_params["oob_score"] = True
-        self.model_params["max_depth"] = 10
-        self.model_params["min_samples_leaf"] = 8
+        self.model_params["max_depth"] = 20
+        self.model_params["min_samples_leaf"] = 4
         self.model_params["min_samples_split"] = 8
         self.model_params["max_features"] = "sqrt"
         self.model_params["random_state"] = 123456
@@ -67,14 +67,13 @@ class RFClassifier:
         return self.clf.predict(X)
 
     def kfold_train(self):
-        self.clf.fit(self.X_train, self.y_train)
-        return cross_val_score(self.clf, self.X_train, self.y_test, cv=self.k_fold).mean()
+        return cross_val_score(self.clf, self.X_train, self.y_train, cv=self.k_fold).mean()
 
-    def kfold_test(self):
+    def kfold_test(self, X, y):
         return cross_val_score(self.clf, self.X_test, self.y_test, cv=self.k_fold).mean()
 
-    def kfold_predict(self):
-        return cross_val_predict(self.clf, self.X_test, self.y_test, cv=self.k_fold)
+    def kfold_predict(self, X, y):
+        return cross_val_predict(self.clf, X=X, y=y, cv=self.k_fold)
 
     def gridSearch(self):
         f1 = make_scorer(f1_score, average="macro")
@@ -110,32 +109,66 @@ class RFClassifier:
 
 
 if __name__ == "__main__":
-    X, y, product_name = get_fraud()
+    X, y, product_name = get_fraud(sampling="smote")
+    assert X.shape[0] == len(product_name)
+    # print(np.array(product_name).shape)
     # X = X[["Type", "late_delivery"]]
     model = RFClassifier(X=X, y=y)
     print(model.train())
-    print(model.test())
-    # best_params, model.clf = model.gridSearch()
+    # print(model.test())
+    # # best_params, model.clf = model.gridSearch()
     # print(classification_report(model.y_train, model.predict(model.X_train)))
     # print(confusion_matrix(model.y_train, model.predict(model.X_train)))
     # print(classification_report(model.y_test, model.predict(model.X_test)))
     # print(confusion_matrix(model.y_test, model.predict(model.X_test)))
 
-    # rfe = RFE(model.clf, 10)
-    # fit = rfe.fit(X, y)
-    # print(fit.n_features_, fit.support_, fit.ranking_)
-    for n in range(10, 2, -1):
-        rfe = RFE(model.clf, n)
-        fit = rfe.fit(X, y)
-        model = RFClassifier(X=X.iloc[:, fit.support_], y=y)
-        model.train()
-        print(classification_report(model.y_test, model.predict(model.X_test)))
-        print(confusion_matrix(model.y_test, model.predict(model.X_test)))
+    # # rfe = RFE(model.clf, 10)
+    # # fit = rfe.fit(X, y)
+    # # print(fit.n_features_, fit.support_, fit.ranking_)
+    rfe = RFE(model.clf, 10)
+    fit = rfe.fit(X, y)
+    model = RFClassifier(X=X.iloc[:, fit.support_], y=y)
+    model.kfold_train()
+    _pred = model.kfold_predict(X=X.iloc[:, fit.support_], y=y)
+    print(classification_report(y, _pred))
+    print(confusion_matrix(y, _pred))
 
-        _pred = model.predict(model.X_test)
-        indices = np.where(_pred == 1)
-        print(np.unique(np.array(product_name)).shape)
-        print(np.unique(np.array(product_name)[indices]).shape)
+    # X, y, product_name = get_fraud(sampling="None")
+    # _pred = model.predict(X=X)
+    # # datas = np.concatenate(
+    # #     [np.array(product_name).reshape(-1, 1), np.array(_pred).reshape(-1, 1)], axis=1
+    # # )
+    df = pd.DataFrame({"Product Name": product_name, "Fraud": _pred})
+    fraud_rate = (
+        df.groupby(["Product Name"]).agg({"Fraud": lambda x: sum(x) / len(x)}).reset_index()
+    )
+    print(fraud_rate[fraud_rate["Fraud"] > 0.1].shape)
+    print(fraud_rate[fraud_rate["Fraud"] > 0.11].shape)
+    print(fraud_rate[fraud_rate["Fraud"] > 0.12].shape)
+    print(fraud_rate[fraud_rate["Fraud"] > 0.13].shape)
+    print(fraud_rate[fraud_rate["Fraud"] > 0.14].shape)
+    print(fraud_rate[fraud_rate["Fraud"] > 0.15].shape)
+    print(fraud_rate[fraud_rate["Fraud"] > 0.16].shape)
+    print(fraud_rate[fraud_rate["Fraud"] > 0.17].shape)
+    print(fraud_rate[fraud_rate["Fraud"] > 0.18].shape)
+    print(fraud_rate[fraud_rate["Fraud"] > 0.19].shape)
+    print(fraud_rate[fraud_rate["Fraud"] > 0.20].shape)
+
+    # indices = np.where(_pred == 1)
+    # print(np.unique(np.array(product_name)).shape)
+    # print(np.unique(np.array(product_name)[indices]).shape)
+    # for n in range(10, 2, -1):
+    #     rfe = RFE(model.clf, n)
+    #     fit = rfe.fit(X, y)
+    #     model = RFClassifier(X=X.iloc[:, fit.support_], y=y)
+    #     model.train()
+    #     print(classification_report(model.y_test, model.predict(model.X_test)))
+    #     print(confusion_matrix(model.y_test, model.predict(model.X_test)))
+
+    #     _pred = model.predict(model.X_test)
+    #     indices = np.where(_pred == 1)
+    #     print(np.unique(np.array(product_name)).shape)
+    #     print(np.unique(np.array(product_name)[indices]).shape)
 
     #     print(fit.n_features_, fit.support_, fit.ranking_)
     # print(classification_report(model.y_test, model.predict(model.X_test)))
