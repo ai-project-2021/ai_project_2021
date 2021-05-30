@@ -142,7 +142,7 @@ def get_rfm_score(rfm):
     return rfm[["Customer Id", "R_Value", "F_Value", "M_Value", "RFM_Total_Score"]]
 
 
-def get_rfm_data():
+def get_rfm_data(rank=False):
     """상품 주문 정보를 바탕으로 R/F/M Value를 계산하고, Customer Id과 RFM Value를 가지는 pd.DataFrame 반환
 
     Returns:
@@ -177,6 +177,9 @@ def get_rfm_data():
     if DEBUG:
         print(rfm.describe())
 
+    if rank:
+        rfm[["F_Value", "M_Value"]] = rfm[["F_Value", "M_Value"]].rank(method = "dense")
+        rfm[["R_Value"]] = rfm[["R_Value"]].rank(method = "dense", ascending = True)
     return rfm
 
 

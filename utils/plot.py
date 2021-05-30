@@ -116,18 +116,28 @@ def clustering_plot(_path, X_range, inertia_list, silhouette_list):
     plt.close()
 
 
-def clustering_plot(_path, X_range, inertia_matrix, silhouette_matrix, scaler_name):
-    ax = ["" for _ in scaler_name]
+def clustering_plot_all(_path, X_range, inertia_matrix, silhouette_matrix, scaler_name):
+    color_list = ["Blue", "Orange", "Green", "Purple", "Yellow", "Pink"]
     plt.figure()
     for i, (inertia, scaler) in enumerate(zip(inertia_matrix, scaler_name)):
-        plt.plot(X_range, inertia, color=f"c{i}", label=scaler)
+        plt.plot(X_range, inertia, color=color_list[i], label=scaler)
+
     plt.ylabel("Inertia")
+    plt.legend()
     plt.savefig(os.path.join(_path, "merge_inertia.png"))
     plt.clf()
 
     for i, (silhouette, scaler) in enumerate(zip(silhouette_matrix, scaler_name)):
-        plt.plot(X_range, silhouette, color=f"c{i}", label=scaler)
-    plt.axvline(y=0.5, color=f"c{len(scaler_name)}", linestyle="--")
+        plt.plot(X_range, silhouette, color=color_list[i], label=scaler)
+        
+    silhouette_max = max([max(v) for v in silhouette_matrix])
+    silhouette_min = min([min(v) for v in silhouette_matrix])
+    
+    for threshold in [0.3, 0.5, 0.7] : 
+        if silhouette_max > threshold and silhouette_min < threshold : 
+            plt.axhline(y=threshold, color="red", linestyle="--")
+
     plt.ylabel("Silhouette")
+    plt.legend()
     plt.savefig(os.path.join(_path, "merge_silhouette.png"))
     plt.close()
