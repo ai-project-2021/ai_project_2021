@@ -6,6 +6,8 @@ from sklearn.metrics import cluster
 
 from models import RFClassifier, KMeans
 from models.recommend import Recommendation
+from models.product_filter import product_filter
+
 
 from utils.loader import get_product_recommend
 from utils.loader import get_rfm_data, get_order, order_filter
@@ -13,8 +15,6 @@ from utils.loader import get_rfm_data, get_order, order_filter
 import random
 
 if __name__ == "__main__":
-    _id = 1302
-
     clustering_model = KMeans
 
     rfm = get_rfm_data()
@@ -23,29 +23,31 @@ if __name__ == "__main__":
     print(_id)
     customer_idx_ = customer_id.index(_id)
 
-    labels_ = clustering_model(k=3).fit(rfm[["R_Value", "F_Value", "M_Value"]].values).labels_
+    labels_ = clustering_model(k=4).fit(rfm[["R_Value", "F_Value", "M_Value"]].values).labels_
 
-    cluster_labels_indices = np.where(labels_ == labels_[customer_idx_])
+    for _id in sorted(customer_id):
+        customer_idx_ = customer_id.index(_id)
 
-    select_customer_list = rfm["Customer Id"].to_numpy()[
-        np.where(labels_ == labels_[customer_idx_])
-    ]
+        cluster_labels_indices = np.where(labels_ == labels_[customer_idx_])
 
-    # print(recommend_data["Customer Id"].unique())
-    orders_data = get_order("quantity")
+        select_customer_list = rfm["Customer Id"].to_numpy()[
+            np.where(labels_ == labels_[customer_idx_])
+        ]
 
-    recommend_data = order_filter(orders_data, select_customer_list)
+        orders_data = get_order("quantity")
 
-    _get_item = lambda item: {
-        sub_key: sub_item["Order Item Quantity"].tolist()[0]
-        for sub_key, sub_item in item.groupby("Product Name")
-    }
+        recommend_data = order_filter(orders_data, select_customer_list)
 
-    order_dict = {
-        c_id: _get_item(recommend_data[recommend_data["Customer Id"] == c_id])
-        for c_id in recommend_data["Customer Id"].unique()
-    }
+        _get_item = lambda item: {
+            sub_key: sub_item["Order Item Quantity"].tolist()[0]
+            for sub_key, sub_item in item.groupby("Product Name")
+        }
 
-    model = Recommendation(order_dict)
-    for idx, (name, weight) in enumerate(model.recommend(_id), 1):
-        print("Best Item {} : {}".format(idx, name))
+        order_dict = {
+            c_id: _get_item(recommend_data[recommend_data["Customer Id"] == c_id])
+            for c_id in recommend_data["Customer Id"].unique()
+        }
+
+        model = Recommendation(order_dict, n=10)
+        for idx, (name, weight) in enumerate(model.recommend(_id), 1):
+            print("{}'s Best Item {} : {}".format(_id, idx, name))
