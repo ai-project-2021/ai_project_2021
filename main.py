@@ -25,6 +25,8 @@ if __name__ == "__main__":
 
     labels_ = clustering_model(k=4).fit(rfm[["R_Value", "F_Value", "M_Value"]].values).labels_
 
+    orders_data = get_order("quantity")
+
     for _id in sorted(customer_id):
         customer_idx_ = customer_id.index(_id)
 
@@ -33,8 +35,6 @@ if __name__ == "__main__":
         select_customer_list = rfm["Customer Id"].to_numpy()[
             np.where(labels_ == labels_[customer_idx_])
         ]
-
-        orders_data = get_order("quantity")
 
         recommend_data = order_filter(orders_data, select_customer_list)
 
