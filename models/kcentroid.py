@@ -3,16 +3,12 @@ from utils import get_rfm_data
 from utils.metrics import inertia
 import argparse
 import time
-import matplotlib.pyplot as plt
-import matplotlib.cm as cm
-from sklearn.metrics import silhouette_samples, silhouette_score
 from sklearn.metrics.pairwise import pairwise_distances
 
 # Clustering의 품질을 정량적으로 평가해주는 지표. [0-1] 1에 가까울 수록 우수한 품질
 from utils.metrics import get_silhouette
-from utils.plot import silhouette_plot
+from utils.plot import silhouette_plot, clustering_plot
 from utils.loader import rescaler
-from utils.plot import clustering_plot
 import os
 
 
