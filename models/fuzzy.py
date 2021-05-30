@@ -11,7 +11,11 @@ import time
 
 from utils import get_rfm_data
 from utils.metrics import inertia
+from utils.metrics import get_silhouette
+from utils.plot import silhouette_plot, clustering_plot
+from utils.loader import rescaler
 from matplotlib import pyplot as plt
+import os
 
 
 def d_tool(X, y):
@@ -75,6 +79,8 @@ class FuzzyKMeans:
             self : clustering 의 결과로 산출된 data의 레이블 값을 반환한다.
         """
 
+        self.datas = X
+
         n_samples, _ = X.shape
         # np.mean : 평균 계산, np.var : 분산 계산
         vdata = np.mean(np.var(X, 0))
@@ -96,7 +102,7 @@ class FuzzyKMeans:
             if np.sum((centers_old - self.cluster_centers_) ** 2) < self.threshold * vdata:
                 break
 
-        self.centroid = self.cluster_centers_
+        self.centroid_ = self.cluster_centers_
         self.labels_ = self.fuzzy_labels_.argmax(axis=1)
         self.inertia_ = inertia(X, self.labels_, self.cluster_centers_)
 
@@ -105,27 +111,51 @@ class FuzzyKMeans:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="K-Centriod Arguments")
-    parser.add_argument("--models", "-m", type=str, action="append", help="K-Centriod Method Type")
-    parser.add_argument("--n_clusters", "-k", type=int, action="append")
+    parser.add_argument("--models", "-m", type=str, action="append", help="Fuzzy Method Type")
+    parser.add_argument("--start_k", "-s", type=int)
+    parser.add_argument("--end_k", "-e", type=int)
     args = parser.parse_args()
 
-    dataset = get_rfm_data()[["R_Value", "F_Value", "M_Value"]]
+    data = get_rfm_data()[["R_Value", "F_Value", "M_Value"]]
     model = FuzzyKMeans(k=3, m=2, max_iter=100, random_state=0, threshold=1e-6)
 
-    s = time.time()
-    elbow = []
-    n_cols = len(args.n_clusters)
-    fig, axs = plt.subplots(figsize=(4 * n_cols, 4), nrows=1, ncols=n_cols)
+    for scaler in ["none"]:  # ["none", "standard", "robust", "normalize", "power", "quantile"]:
+        s = time.time()
 
-    for i, k in enumerate(args.n_clusters):
-        e = time.time()
-        model.k = k
-        elbow.append(model.fit(dataset.values).inertia_)
-        silhouette_avg = silhouette_score(dataset.values, model.labels_)
-        print(
-            "K : {}, Inertia : {}, Avg. Silhouette_Score : {}".format(k, elbow[-1], silhouette_avg)
+        inertia_list = []
+        silhouette_list = []
+        if scaler == "none":
+            dataset = data.values.copy()
+        else:
+            dataset = rescaler(data.values, scaler)
+
+        base_dir = f"./graph/Fuzzy_{scaler}"
+        if not os.path.exists(base_dir):
+            os.makedirs(base_dir)
+
+        for i, k in enumerate(range(args.start_k, args.end_k + 1)):
+            model.k = k
+            inertia_list.append(model.fit(dataset).inertia_)
+            silhouette_list.append(get_silhouette(dataset, model.labels_))
+
+            print(
+                "{}, K : {:g}, Inertia : {:g}, Avg. Silhouette_Score : {:g}".format(
+                    scaler, k, inertia_list[-1], silhouette_list[-1]
+                )
+            )
+
+            silhouette_plot(
+                model.datas,
+                model.labels_,
+                model.k,
+                silhouette_list[-1],
+                model.centroid_,
+                os.path.join(base_dir, "silhouette_{model.k}.png"),
+            )
+
+        clustering_plot(
+            base_dir,
+            list(range(args.start_k, args.end_k + 1)),
+            inertia_list,
+            silhouette_list,
         )
-
-    plt.figure()
-    plt.plot(args.n_clusters, elbow)
-    plt.savefig(f"./fuzzy.png")
