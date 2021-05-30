@@ -51,7 +51,7 @@ def f1(y_true, y_pred):
     recall = recall(y_true, y_pred)
     return 2*((precision*recall)/(precision+recall+K.epsilon()))
 
-class NN:
+class DNN_model:
 
     def __init__(self,X,y):
         """Create Dataset
@@ -88,7 +88,6 @@ class NN:
     def kfold_predict(self):
         return cross_val_predict(self.dnn_model, self.X_test, self.y_test, cv=self.k_fold)
 
-    # DNN 수행
     def create_model(self):
         """DNN model을 구현하는 함수입니다.
 
@@ -141,7 +140,7 @@ if __name__ == "__main__" :
     """[summary]
     """
     X, y = get_fraud(sampling="smote")
-    n = NN(X=X, y=y)
+    n = DNN_model(X=X, y=y)
     model = n.dnn_model
 
     batch_size = 512
