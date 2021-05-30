@@ -70,14 +70,14 @@ class DNN_model:
         self.get_data(X, y)
         self.n_in = self.X_train.shape[1]
         self.n_hiddens = [20, 20]
-        self.n_out = self.y_train.shape[1]
+        self.n_out = 1
         self.activation = "sigmoid"
         self.p_keep = 0.4
 
         self.batch_size = 512
         self.epochs = 2000
         self.class_weights = {1: 0.9, 0: 0.1}
-        self.callbacks = EarlyStopping(monitor="f1", patience=50, verbose=1)
+        self.callbacks = EarlyStopping(monitor="f1", patience=300, verbose=1)
 
         self.dnn_model = self.create_model()
 
