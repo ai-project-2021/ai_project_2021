@@ -24,7 +24,6 @@ def silhouette_plot(X, y, k, silhouette_score, centers, _path):
         # Aggregate the silhouette scores for samples belonging to
         # cluster i, and sort them
         ith_cluster_silhouette_values = sample_silhouette_values[y == i]
-
         ith_cluster_silhouette_values.sort()
 
         size_cluster_i = ith_cluster_silhouette_values.shape[0]
@@ -96,6 +95,13 @@ def clustering_plot(_path, X_range, inertia_list, silhouette_list):
     plt.savefig(os.path.join(_path, "inertia.png"))
     plt.clf()
     plt.plot(X_range, silhouette_list, color="blue")
+    line = 10
+    for i in silhouette_list[::-1]:
+        if i < 0.5:
+            line -= 1
+        else:
+            break
+    plt.axvline(x=line, color="red", linestyle="--")
     plt.ylabel("Silhouette")
     plt.savefig(os.path.join(_path, "silhouette.png"))
     plt.close()

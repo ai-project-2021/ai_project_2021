@@ -214,7 +214,7 @@ def get_fraud(sampling=None, is_get_dummies=False):
     X, y = data.loc[:, data.columns != "fraud"], data["fraud"]
 
     categorical_columns = [c for c, dtype_ in zip(X.columns, X.dtypes) if dtype_ == "object"]
-
+    product_names_ = X["Product Name"].tolist()
     if is_get_dummies == True:  # One-Hot Vector
         numeric_columns = [c for c, dtype_ in zip(X.columns, X.dtypes) if dtype_ != "object"]
         X = X[numeric_columns] + pd.get_dummies(X[categorical_columns])
@@ -225,11 +225,11 @@ def get_fraud(sampling=None, is_get_dummies=False):
             X[col] = le.fit_transform(X[col])
 
     if sampling == None:
-        return X, y
+        return X, y, product_names_
     elif sampling == "over":
-        return RandomOverSampler(random_state=42).fit_resample(X, y)
+        return RandomOverSampler(random_state=42).fit_resample(X, y), product_names_
     elif sampling == "smote":
-        return SMOTE(random_state=42).fit_resample(X, y)
+        return SMOTE(random_state=42).fit_resample(X, y), product_names_
 
 
 def get_order(key_, customer_id_list=None):
