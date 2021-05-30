@@ -75,7 +75,7 @@ def get_raw_data():
     )
 
     # 1가지 종류의 상품만을 구입한 사람은 Product Recomandation이 어렵기 때문에 Filtering
-    customer_filter = customer_product_unique[customer_product_unique["Product Name"] != 1][
+    customer_filter = customer_product_unique[customer_product_unique["Product Name"] > 3][
         "Customer Id"
     ]
 
@@ -232,7 +232,7 @@ def get_fraud(sampling=None, is_get_dummies=False):
         return SMOTE(random_state=42).fit_resample(X, y)
 
 
-def get_order(key_):
+def get_order(key_, customer_id_list=None):
     """Product Recommdatation Dataset
 
     Args:
@@ -250,19 +250,19 @@ def get_order(key_):
     elif key_ == "all":
         f = lambda x: x.sum() + len(x)
 
-    get_item = lambda item: {
-        sub_key: f(sub_item["Order Item Quantity"])
-        for sub_key, sub_item in item.groupby("Product Name")
-    }
+    order_data_summarize = (
+        order_data.drop_duplicates()
+        .groupby(["Customer Id", "Product Name"])
+        .agg({"Order Item Quantity": lambda x: f(x)})
+        .reset_index()
+    )
 
-    order_dict = {
-        c_id: get_item(order_data[order_data["Customer Id"] == c_id])
-        for c_id in order_data["Customer Id"].unique()
-    }
+    return order_data_summarize
 
-    return order_dict
+
+def order_filter(order_data, customer_id_list):
+    return order_data[order_data["Customer Id"].isin(customer_id_list)]
 
 
 if __name__ == "__main__":
-    # get_order(key_="quantity")
     get_rfm_data()
