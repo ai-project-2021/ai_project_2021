@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import numpy as np
+import os
 
 from sklearn.metrics import silhouette_samples
 
@@ -85,4 +86,24 @@ def silhouette_plot(X, y, k, silhouette_score, centers, _path):
         fontweight="bold",
     )
     plt.savefig(_path)
+    plt.close()
+
+
+def clustering_plot(_path, X_range, inertia_list, silhouette_list):
+    plt.figure()
+    plt.plot(X_range, inertia_list, color="red")
+    plt.ylabel("Inertia")
+    plt.savefig(os.path.join(_path, "inertia.png"))
+    plt.clf()
+    plt.plot(X_range, silhouette_list, color="blue")
+    plt.ylabel("Silhouette")
+    plt.savefig(os.path.join(_path, "silhouette.png"))
+    plt.close()
+    _, ax1 = plt.subplots()
+    ax1.plot(X_range, inertia_list, color="red")
+    ax1.set_ylabel("Inertia")
+    ax2 = ax1.twinx()
+    ax2.plot(X_range, silhouette_list, color="blue")
+    ax2.set_ylabel("Silhouette")
+    plt.savefig(os.path.join(_path, "score.png"))
     plt.close()
