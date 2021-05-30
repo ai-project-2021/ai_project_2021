@@ -10,8 +10,7 @@ from tqdm import trange
 import time
 
 from utils import get_rfm_data
-from utils.metrics import inertia
-from utils.metrics import get_silhouette
+from utils.metrics import inertia, get_silhouette
 from utils.plot import silhouette_plot, clustering_plot
 from utils.loader import rescaler
 from matplotlib import pyplot as plt
