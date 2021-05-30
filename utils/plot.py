@@ -116,9 +116,10 @@ def clustering_plot(_path, X_range, inertia_list, silhouette_list):
     plt.close()
 
 
-def clustering_plot_all(_path, X_range, inertia_matrix, silhouette_matrix, scaler_name):
+def clustering_plot_all(_path, X_range, inertia_matrix, silhouette_matrix, scaler_name, algorithm):
     color_list = ["Blue", "Orange", "Green", "Purple", "Yellow", "Pink"]
     plt.figure()
+    plt.title(algorithm)
     for i, (inertia, scaler) in enumerate(zip(inertia_matrix, scaler_name)):
         plt.plot(X_range, inertia, color=color_list[i], label=scaler)
 
@@ -127,17 +128,43 @@ def clustering_plot_all(_path, X_range, inertia_matrix, silhouette_matrix, scale
     plt.savefig(os.path.join(_path, "merge_inertia.png"))
     plt.clf()
 
+    plt.title(algorithm)
+    for i, (inertia, scaler) in enumerate(zip(inertia_matrix, scaler_name)):
+        plt.subplot(2, 3, i + 1)
+        plt.title(scaler)
+        plt.plot(X_range, inertia, color="red", label=scaler)
+        plt.ylabel("Inertia")
+
+    plt.savefig(os.path.join(_path, "matrix_inertia.png"))
+    plt.clf()
+
+    plt.title(algorithm)
     for i, (silhouette, scaler) in enumerate(zip(silhouette_matrix, scaler_name)):
         plt.plot(X_range, silhouette, color=color_list[i], label=scaler)
-        
+
     silhouette_max = max([max(v) for v in silhouette_matrix])
     silhouette_min = min([min(v) for v in silhouette_matrix])
-    
-    for threshold in [0.3, 0.5, 0.7] : 
-        if silhouette_max > threshold and silhouette_min < threshold : 
+
+    for threshold in [0.3, 0.5, 0.7]:
+        if silhouette_max > threshold and silhouette_min < threshold:
             plt.axhline(y=threshold, color="red", linestyle="--")
 
     plt.ylabel("Silhouette")
     plt.legend()
     plt.savefig(os.path.join(_path, "merge_silhouette.png"))
     plt.close()
+
+    plt.title(algorithm)
+    for i, (silhouette, scaler) in enumerate(zip(silhouette_matrix, scaler_name)):
+        plt.subplot(2, 3, i + 1)
+        plt.title(scaler)
+        plt.plot(X_range, silhouette, color="blue", label=scaler)
+        plt.ylabel("Silhouette")
+        silhouette_max = max(silhouette)
+        silhouette_min = min(silhouette)
+        for threshold in [0.3, 0.5, 0.7]:
+            if silhouette_max > threshold and silhouette_min < threshold:
+                plt.axhline(y=threshold, color="red", linestyle="--")
+
+    plt.savefig(os.path.join(_path, "matrix_silhouette.png"))
+    plt.clf()
