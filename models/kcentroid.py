@@ -12,6 +12,7 @@ from sklearn.metrics.pairwise import pairwise_distances
 from utils.metrics import get_silhouette
 from utils.plot import silhouette_plot
 from utils.loader import rescaler
+from utils.plot import clustering_plot
 import os
 
 
@@ -77,13 +78,13 @@ class KMeans:
         return self.fit(datas).labels_
 
 
-class KMedians(KMeans):
+class KMedian(KMeans):
     def __init__(self, k):
-        """K-Medians Clustering
+        """K-Median Clustering
         군집의 중심인 centroid 를 계산할 때, 군집에 속한 데이터들 중 median값을 사용하는 clustering 기법이다.
         거리를 측정할 때 맨해튼 거리 공식을 이용한다.
 
-        KMedians class는 KMeans class를 부모 클래스로 가지며 KMeans class의 Method, Attribute등을 상속받아 사용한다.
+        KMedian class는 KMeans class를 부모 클래스로 가지며 KMeans class의 Method, Attribute등을 상속받아 사용한다.
         따라서 __init__, _update, fit, fit_predict를 사용한다.
 
         Args:
@@ -95,7 +96,7 @@ class KMedians(KMeans):
 
     def _update(self):
         """군집을 갱신하는 Assignment과정을 수행하는 함수이다. 모든 데이터에 대하여, 가장 거리가 가까운 클러스터를 선택한다.
-        K-medians clustering은 Manhattan distance 거리 공식을 사용하여 데이터간의 거리를 계산한다.
+        K-Median clustering은 Manhattan distance 거리 공식을 사용하여 데이터간의 거리를 계산한다.
         클러스터의 중심과 각 클러스터에 속해 있는 데이터간의 맨해튼 거리를 계산하여, 그 중 가장 거리가 가까운 클러스터에 데이터를 할당한다.
 
 
@@ -107,7 +108,7 @@ class KMedians(KMeans):
         return np.eye(self.k)[np.array([_clu(c) for c in self.centroid_]).argmin(axis=0)]
 
 
-class KMedoids:
+class KMedoid:
     def __init__(self, k, max_iters=500):
         """K-Medoid Clustering
         초기 중심 값에 민감한 반응을 보이고, 노이즈와 아웃라이어에 민감한 K-means clustering의 단점을 보완할 수 있는 클러스트링 방법이다.
@@ -143,8 +144,8 @@ class KMedoids:
         """
         return np.sqrt(np.sum(np.square(xa - xb), axis=-1))
 
-    def _update_medoids(self, labels, medoids_indices):
-        """각 클러스터를 대표하는 데이터인 medoids를 지정하는 함수이다.
+    def _update_medoid(self, labels, medoid_indices):
+        """각 클러스터를 대표하는 데이터인 medoid를 지정하는 함수이다.
 
         Args:
             labels (int): data당 속해있는 cluster의 레이블을 나타낸다.
@@ -155,11 +156,11 @@ class KMedoids:
 
         for i in range(self.k):
             indices = np.where(labels == i)[0]
-            cost = np.sum(self.dist[indices, indices[:, np.newaxis]], axis=1)
+            cost = np.sum(self.distance[indices, indices[:, np.newaxis]], axis=1)
             _idx = np.argmin(cost)
 
-            if cost[_idx] < cost[np.argmax(indices == medoids_indices[i])]:
-                medoids_indices[i] = indices[_idx]
+            if cost[_idx] < cost[np.argmax(indices == medoid_indices[i])]:
+                medoid_indices[i] = indices[_idx]
 
     def fit(self, datas):
         """초기 medoid을 랜덤하게 초기화 해주는 initialization 과정과,
@@ -175,19 +176,19 @@ class KMedoids:
         self.datas = datas
 
         self.distance = pairwise_distances(self.datas, metric="euclidean")
-        # medoids = check_random_state(0).choice(len(D), self.k)
-        medoids_indices = np.argpartition(np.sum(self.distance, axis=1), self.k - 1)[: self.k]
+        # medoid = check_random_state(0).choice(len(D), self.k)
+        medoid_indices = np.argpartition(np.sum(self.distance, axis=1), self.k - 1)[: self.k]
 
         for _ in range(self.max_iters):
-            prev_medoids_indices = np.copy(medoids_indices)
-            labels = np.argmin(self.distance[medoids_indices, :], axis=0)
-            self._update_medoids(labels, medoids_indices)
+            prev_medoid_indices = np.copy(medoid_indices)
+            labels = np.argmin(self.distance[medoid_indices, :], axis=0)
+            self._update_medoid(labels, medoid_indices)
 
-            if np.all(prev_medoids_indices == medoids_indices):
+            if np.all(prev_medoid_indices == medoid_indices):
                 break
 
         self.labels_ = labels
-        self.centroid_ = self.datas[medoids_indices]
+        self.centroid_ = self.datas[medoid_indices]
         self.inertia_ = inertia(datas, self.labels_, self.centroid_)
         return self
 
@@ -203,10 +204,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     data = get_rfm_data()[["R_Value", "F_Value", "M_Value"]]
-    model_dict = {"KMeans": KMeans, "KMedians": KMedians, "KMedoids": KMedoids}
+    model_dict = {"KMeans": KMeans, "KMedian": KMedian, "KMedoid": KMedoid}
 
     for model_ in args.models:
-        for scaler in ["none", "standard", "robust", "normalize", "power", "quantile"]:
+        for scaler in ["none"]:  # ["none", "standard", "robust", "normalize", "power", "quantile"]:
             s = time.time()
 
             inertia_list = []
@@ -249,20 +250,9 @@ if __name__ == "__main__":
                     f"./graph/{model_}_{scaler}/silhouette_{model.k}.png",
                 )
 
-            plt.figure()
-            plt.plot(list(range(args.start_k, args.end_k + 1)), inertia_list, color="red")
-            plt.ylabel("Inertia")
-            plt.savefig(f"./graph/{model_}_{scaler}/inertia.png")
-            plt.clf()
-            plt.plot(list(range(args.start_k, args.end_k + 1)), silhouette_list, color="blue")
-            plt.ylabel("Silhouette")
-            plt.savefig(f"./graph/{model_}_{scaler}/silhouette.png")
-            plt.close()
-            fig, ax1 = plt.subplots()
-            ax1.plot(list(range(args.start_k, args.end_k + 1)), inertia_list, color="red")
-            ax1.set_ylabel("Inertia")
-            ax2 = ax1.twinx()
-            ax2.plot(list(range(args.start_k, args.end_k + 1)), silhouette_list, color="blue")
-            ax2.set_ylabel("Silhouette")
-            plt.savefig(f"./graph/{model_}_{scaler}/score.png")
-            plt.close()
+            clustering_plot(
+                f"./graph/{model_}_{scaler}/",
+                list(range(args.start_k, args.end_k + 1)),
+                inertia_list,
+                silhouette_list,
+            )
