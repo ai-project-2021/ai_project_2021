@@ -3,6 +3,8 @@
 import tensorflow as tf
 import os
 import matplotlib.pyplot as plt
+import numpy as np
+import time
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 
@@ -58,13 +60,15 @@ def f1(y_true, y_pred):
 class DNN_model:
     def __init__(self, X, y):
         """Create Dataset
-        원본 데이터를 불러옵니다.
-        불러 온 데이터로부터 training set과 test set을 생성합니다.
-        효과적으로 학습할 수 있도록 데이터셋을 scaling 합니다.
-
+        
         model 생성에 이용될 input layer, hidden layer, 그리고 output layer의 형태를 결정하고,
         마지막 layer에 이용할 activation 함수와 dropout 확률의 비율을 설정합니다.
+        모델 학습에 적용할 batch size와 epoch 수, 그리고 class weight 값을 설정합니다.
+        callbacks에 EarlyStopping 정보를 저장하고, dnn_model에 create_model 함수를 적용하여 모델을 구현합니다.
 
+        Args:
+            X (int): fraud 여부를 판단하는데 사용되는 feature 정보
+            y (int): fraud 인지 아닌지에 대한 label 정보(1: 사기, 0: 사기 아님)
         """
         self.k_fold = StratifiedKFold(n_splits=5)
         self.get_data(X, y)
@@ -76,12 +80,23 @@ class DNN_model:
 
         self.batch_size = 512
         self.epochs = 2000
-        self.class_weights = {1: 0.9, 0: 0.1}
-        self.callbacks = EarlyStopping(monitor="f1", patience=300, verbose=1)
+        self.class_weights = {
+            y_: y[y != y_].shape[0] / y[y == y_].shape[0] for y_ in np.unique(y.values)
+        }
+        self.callbacks = EarlyStopping(monitor="f1", patience=10, verbose=1)
 
         self.dnn_model = self.create_model()
 
     def get_data(self, X, y):
+        """data scaling and split
+
+        데이터를 스케일링 하고, 전체 데이터 셋을 training data 80%, test data 20%로 split 합니다.
+        training data를 다시 training data 80%, val_data 20%로 split 합니다.
+
+        Args:
+            X (int): fraud 여부를 판단하는데 사용되는 feature 정보
+            y (int): fraud 인지 아닌지에 대한 label 정보(1: 사기, 0: 사기 아님)
+        """
         sc = StandardScaler()
         X = sc.fit_transform(X)
 
@@ -93,6 +108,12 @@ class DNN_model:
         )
 
     def train(self):
+        """dnn model 학습 및 그래프 도출
+
+        학습 데이터를 dnn model에 넣어서 학습을 시키고, 
+        loss, val_lossdp 대한 결과 그래프 하나,
+        precision, accuracy, f1 score에 대한 결과 그래프 하나를 도출합니다.
+        """
         self.hist = self.dnn_model.fit(
             self.X_train,
             self.y_train,
@@ -127,6 +148,11 @@ class DNN_model:
     def create_model(self):
         """DNN model을 구현하는 함수입니다.
 
+        Sequential 모델을 불러와서 배치 정규화를 진행한 후, hidden layer를 거쳐서 하나의 label 값을 도출합니다.
+        여기서 모델을 학습하는데 activation 함수로 relu가 사용되고, 마지막 layer에서만 sigmoid를 사용합니다.
+        모델 컴파일 시에 최적화를 위해 Adam optimizer와 손실함수 binary_crossentropy를 사용하고, 
+        metrics에는 평가 지표로 사용되는 accuracy, f1, precision, 그리고 recall을 사용합니다.
+
         Returns:
             model: Deep Neural Network model을 반환합니다.
         """
@@ -158,6 +184,10 @@ class DNN_model:
         return model
 
     def loss_graph(self):
+        """loss, val_loss graph
+
+        epoch 값의 증가에 따른 loss와 val_loss의 값의 변화를 그래프로 표현합니다.
+        """
         fig, loss_ax = plt.subplots(figsize=(15, 5))
         loss_ax.plot(self.hist.history["loss"], "y", label="train_loss")
         loss_ax.plot(self.hist.history["val_loss"], "r", label="val loss")
@@ -170,9 +200,14 @@ class DNN_model:
         plt.show()
 
     def result_graph(self):
+        """precision, accuracy, f1 score graph
+
+        epoch 값의 증가에 따른 precision, accuracy, 그리고 f1 score graph의 값의 변화를 그래프로 표현합니다.
+        """
         fig, result_ax = plt.subplots(figsize=(15, 5))
-        result_ax.plot(self.hist.history["precision_1"], "y", label="precision")
-        result_ax.plot(self.hist.history["recall_1"], "r", label="recall")
+        print(self.hist.history.keys())
+        result_ax.plot(self.hist.history["precision"], "y", label="precision")
+        result_ax.plot(self.hist.history["recall"], "r", label="recall")
         result_ax.plot(self.hist.history["f1"], "b", label="f1")
 
         result_ax.set_xlabel("epoch")
@@ -182,10 +217,22 @@ class DNN_model:
 
         plt.show()
 
-
 def load_result():
-    model = load_model("dnn_model.h5", custom_objects={"f1": f1})
+    """모델 학습 결과 load
+
+    dnn model의 학습 결과를 load하고, load해서 가져온 정보를 comile하고, evaluate을 통해 모델 평가까지 이루어집니다.
+    """
+    model = load_model(s+".h5", custom_objects={"f1": f1})
     model_params = pkl.load(open("dnn_model_params.pkl", "rb"))
+
+    opt = keras.optimizers.Adam(
+            learning_rate=0.001, beta_1=0.9, beta_2=0.999, epsilon=None, decay=1e-6, amsgrad=False
+        )
+    model.compile(
+            optimizer=opt,
+            loss="binary_crossentropy",
+            metrics=["accuracy", f1, tf.keras.metrics.Precision(), tf.keras.metrics.Recall()],
+        )
 
     X_test = model_params["X_test"]
     y_test = model_params["y_test"]
@@ -215,29 +262,8 @@ def load_result():
 
 
 if __name__ == "__main__":
-    """[summary]"""
     X, y = get_fraud(sampling="smote")
     n = DNN_model(X=X, y=y)
-
-    # batch_size = 512
-    # epochs = 2000
-    # class_weights = {1: 0.9, 0: 0.1}
-    # callbacks = EarlyStopping(monitor="f1", patience=50, verbose=1)
-
-    # hist = model.fit(
-    #     n.X_train,
-    #     n.y_train,
-    #     batch_size=batch_size,
-    #     epochs=epochs,
-    #     callbacks=callbacks,
-    #     class_weight=class_weights,
-    #     validation_data=(n.X_val, n.y_val),
-    #     verbose=1,
-    # )
-
-    # train_evaluate = model.evaluate(n.X_train, n.y_train)
-    # test_evaluate = model.evaluate(n.X_test, n.y_test)
-    # val_evaluate = model.evaluate(n.X_val, n.y_val)
 
     n.train()
 
@@ -247,7 +273,8 @@ if __name__ == "__main__":
     print("accuracy for Test set is", test_evaluate)
     print("accuracy for Val set is", val_evaluate)
 
-    n.dnn_model.save("dnn_model.h5")
+    s=time.ctime()
+    n.dnn_model.save(s+".h5")
     with open("dnn_model_params.pkl", "wb") as f:
         pkl.dump(
             {
@@ -261,21 +288,3 @@ if __name__ == "__main__":
         )
 
     load_result()
-
-    # model = load_model("dnn_model.h5", custom_objects={"f1": f1})
-    # print("test evaluate : ", test_evaluate)
-    # print("test loss : ", test_evaluate[0])
-    # print("test accuracy : ", test_evaluate[1])
-    # print("test f1 : ", test_evaluate[2])
-    # print("val evaluate : ", val_evaluate)
-    # print("val loss : ", val_evaluate[0])
-    # print("val accuracy : ", val_evaluate[1])
-    # print("val f1 : ", val_evaluate[2])
-
-    # y_pred = model.predict(n.X_test)
-    # cm = confusion_matrix(n.y_test, y_pred.round())
-
-    # print(classification_report(n.y_test, y_pred.round()))
-    # print(cm)
-    # print(f1_score(n.y_test, y_pred.round()))
-    # print("hidden_layer 개수: ", n.n_hiddens)
