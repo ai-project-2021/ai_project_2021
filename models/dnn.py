@@ -96,9 +96,9 @@ class DNN_model:
         )
         self.loss_f = "binary_crossentropy"
         self.metrics = ["accuracy", f1, tf.keras.metrics.Precision(), tf.keras.metrics.Recall()]
-        if load : 
+        if load:
             self.dnn_model = load_dnn_model(self.opt, self.loss_f, self.metrics)
-        else : 
+        else:
             self.dnn_model = self.create_model()
 
     def get_data(self, X, y):
@@ -188,13 +188,22 @@ class DNN_model:
         )
         return model
 
+
 def save(model):
     model.dnn_model.save("./saved/dnn_model.h5")
+<<<<<<< HEAD
+=======
+
+>>>>>>> 43b301720383d413d7bc84b7b6e1cee6dbd931b9
 
 def load_dnn_model(opt, loss_f, metrics):
     """모델 학습 결과 load
     dnn model의 학습 결과를 load하고, load해서 가져온 정보를 comile하고, evaluate을 통해 모델 평가까지 이루어집니다.
     """
+<<<<<<< HEAD
+=======
+
+>>>>>>> 43b301720383d413d7bc84b7b6e1cee6dbd931b9
     dnn_model = load_model("./saved/dnn_model.h5", custom_objects={"f1": f1})
 
     dnn_model.compile(
@@ -271,14 +280,20 @@ def show_load_model_result():
 
 if __name__ == "__main__":
     X, y, _ = get_fraud(sampling="smote")
-    n = DNN_model(X=X, y=y, load=True)
+    load = True
+    n = DNN_model(X=X, y=y, load=load)
 
+<<<<<<< HEAD
     n.train()
+=======
+    if not load:
+        n.train()
+>>>>>>> 43b301720383d413d7bc84b7b6e1cee6dbd931b9
 
     test_evaluate = n.eval_test()
     val_evaluate = n.eval_val()
 
     print("accuracy for Test set is", test_evaluate)
     print("accuracy for Val set is", val_evaluate)
-
-    save(n)
+    if not load:
+        save(n)
