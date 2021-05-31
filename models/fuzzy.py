@@ -133,7 +133,7 @@ if __name__ == "__main__":
         else:
             dataset = rescaler(data.values, scaler)
 
-        base_dir = f"./graph/Fuzzy_{scaler}"
+        base_dir = f"./graph/"
         if not os.path.exists(base_dir):
             os.makedirs(base_dir)
 
@@ -173,4 +173,5 @@ if __name__ == "__main__":
         inertia_matrix,
         silhouette_matrix,
         scaler_list,
+        "Fuzzy"
     )
