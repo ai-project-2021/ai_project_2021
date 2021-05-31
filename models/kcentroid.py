@@ -199,7 +199,7 @@ if __name__ == "__main__":
     parser.add_argument("--end_k", "-e", type=int)
     args = parser.parse_args()
 
-    data = get_rfm_data(rank=True)[["R_Value", "F_Value", "M_Value"]]
+    data = get_rfm_data(rank=False)[["R_Value", "F_Value", "M_Value"]]
     model_dict = {"KMeans": KMeans, "KMedian": KMedian, "KMedoid": KMedoid}
 
     inertia_matrix = []
@@ -261,9 +261,10 @@ if __name__ == "__main__":
             silhouette_matrix.append([v for v in silhouette_list])
 
         clustering_plot_all(
-            f"./graph/{model_}_none/",
+            f"./graph/",
             list(range(args.start_k, args.end_k + 1)),
             inertia_matrix,
             silhouette_matrix,
             scaler_list,
+            model_
         )

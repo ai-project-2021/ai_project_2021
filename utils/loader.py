@@ -16,7 +16,7 @@ import datetime as dt
 from functools import reduce
 
 
-DEBUG = True
+DEBUG = False
 
 
 def rescaler(data, scaler=None):
@@ -75,7 +75,7 @@ def get_raw_data():
         .reset_index()
     )
 
-    # 1가지 종류의 상품만을 구입한 사람은 Product Recomandation이 어렵기 때문에 Filtering
+    # 1, 2, 3가지 종류의 상품만을 구입한 사람은 Product Recomandation이 어렵기 때문에 Filtering
     customer_filter = customer_product_unique[customer_product_unique["Product Name"] > 3][
         "Customer Id"
     ]

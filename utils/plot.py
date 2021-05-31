@@ -89,23 +89,36 @@ def silhouette_plot(X, y, k, silhouette_score, centers, _path):
 
 
 def clustering_plot(_path, X_range, inertia_list, silhouette_list):
+    """visualization of clustering results
+
+    Args:
+        _path : file storage path
+        X_range : range of k (2~10)
+    """
     plt.figure()
+    # line graph of inertia data using 6 ways of scaling
     plt.plot(X_range, inertia_list, color="red")
     plt.ylabel("Inertia")
     plt.savefig(os.path.join(_path, "inertia.png"))
     plt.clf()
+    # line graph of silhoutette data using 6 ways of scaling
     plt.plot(X_range, silhouette_list, color="blue")
     line = 10
+
     for i in silhouette_list[::-1]:
         if i < 0.5:
             line -= 1
         else:
             break
     line = 2 if line == 1 else line
+    # silhouette score가 0.5인 곳에 빨간색 점선으로 표시
     plt.axvline(x=line, color="red", linestyle="--")
     plt.ylabel("Silhouette")
+    # png file save
     plt.savefig(os.path.join(_path, "silhouette.png"))
     plt.close()
+
+    # graph of merging silhouette and inertia score
     _, ax1 = plt.subplots()
     ax1.plot(X_range, inertia_list, color="red")
     ax1.set_ylabel("Inertia")
@@ -117,6 +130,13 @@ def clustering_plot(_path, X_range, inertia_list, silhouette_list):
 
 
 def clustering_plot_all(_path, X_range, inertia_matrix, silhouette_matrix, scaler_name, algorithm):
+    """ Draw inertia, silhouette graphs in different colors for each of the 6 scaling models
+    Args:
+        _path : file storage path
+        X_range : range of k (2~10)
+        scaler_list = ["none", "standard", "robust", "normalize", "power", "quantile"]
+        algorithm = ["KMeans", "KMedian", "KMedoid"]
+    """
     color_list = ["Blue", "Orange", "Green", "Purple", "Yellow", "Pink"]
     plt.figure()
     plt.title(algorithm)
@@ -127,9 +147,9 @@ def clustering_plot_all(_path, X_range, inertia_matrix, silhouette_matrix, scale
     plt.legend()
     plt.savefig(os.path.join(_path, f"{algorithm}_merge_inertia.png"))
     plt.close()
-
     plt.figure(figsize=(20, 10))
     plt.title(algorithm)
+    # inertia graphs in different colors for each of the 6 scaling models
     for i, (inertia, scaler) in enumerate(zip(inertia_matrix, scaler_name)):
         plt.subplot(2, 3, i + 1)
         plt.title(scaler)
@@ -142,12 +162,12 @@ def clustering_plot_all(_path, X_range, inertia_matrix, silhouette_matrix, scale
     plt.title(algorithm)
     for i, (silhouette, scaler) in enumerate(zip(silhouette_matrix, scaler_name)):
         plt.plot(X_range, silhouette, color=color_list[i], label=scaler)
-
+    
     silhouette_max = max([max(v) for v in silhouette_matrix])
     silhouette_min = min([min(v) for v in silhouette_matrix])
-
+    # Graph output based on where silhouette score is 6000
     plt.axhline(y=0.6, color="gray", linestyle="--")
-
+    # silhouette graph's performance evaluation range : 0.3, 0.5, 0.7
     for threshold in [0.3, 0.5, 0.7]:
         if silhouette_max > threshold and silhouette_min < threshold:
             plt.axhline(y=threshold, color="red", linestyle="--")
@@ -159,6 +179,7 @@ def clustering_plot_all(_path, X_range, inertia_matrix, silhouette_matrix, scale
 
     plt.figure(figsize=(20, 10))
     plt.title(algorithm)
+    # silhouette graphs in different colors for each of the 6 scaling models
     for i, (silhouette, scaler) in enumerate(zip(silhouette_matrix, scaler_name)):
         plt.subplot(2, 3, i + 1)
         plt.title(scaler)

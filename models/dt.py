@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import json
+import dill
 
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.model_selection import StratifiedKFold, GridSearchCV, RepeatedStratifiedKFold
@@ -23,7 +24,7 @@ class DTClassifier:
         self.model_params["min_samples_split"] = 12
         self.model_params["max_features"] = "sqrt"
         self.model_params["random_state"] = 123456
-        self.model_params["criterion"] = "gini"
+        self.model_params["criterion"] = "entropy"
         self.model_params["class_weight"] = {
             label: (float(y[y != label].shape[0]) / float(y[y == label].shape[0])) ** 0.5
             for label in np.unique(y)
@@ -101,6 +102,15 @@ class DTClassifier:
         print(classification_report(self.y_test, _pred))
         print(cm)
         return f1_score(self.y_test, _pred, average="macro")
+
+    def save(self):
+        with open("./saved/dt.pkl", "wb") as f:
+            dill.dump(self, f)
+
+
+def load_dt_model():
+    with open("./saved/dt.pkl", "rb") as f:
+        return dill.load(f)
 
 
 if __name__ == "__main__":
