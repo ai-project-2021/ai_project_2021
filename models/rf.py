@@ -1,15 +1,18 @@
 import numpy as np
 import pandas as pd
 import json
-import os
 
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import StratifiedKFold, GridSearchCV
-from sklearn.model_selection import train_test_split
-from sklearn.model_selection import cross_val_score, cross_val_predict
+from sklearn.model_selection import (
+    StratifiedKFold,
+    GridSearchCV,
+    train_test_split,
+    cross_val_score,
+    cross_val_predict,
+)
 from sklearn.metrics import confusion_matrix, classification_report, f1_score, make_scorer
-from sklearn.decomposition import PCA
 from sklearn.feature_selection import RFE
+
 from utils import get_fraud
 
 
@@ -111,20 +114,10 @@ class RFClassifier:
 if __name__ == "__main__":
     X, y, product_name = get_fraud(sampling="smote")
     assert X.shape[0] == len(product_name)
-    # print(np.array(product_name).shape)
-    # X = X[["Type", "late_delivery"]]
+
     model = RFClassifier(X=X, y=y)
     print(model.train())
-    # print(model.test())
-    # # best_params, model.clf = model.gridSearch()
-    # print(classification_report(model.y_train, model.predict(model.X_train)))
-    # print(confusion_matrix(model.y_train, model.predict(model.X_train)))
-    # print(classification_report(model.y_test, model.predict(model.X_test)))
-    # print(confusion_matrix(model.y_test, model.predict(model.X_test)))
 
-    # # rfe = RFE(model.clf, 10)
-    # # fit = rfe.fit(X, y)
-    # # print(fit.n_features_, fit.support_, fit.ranking_)
     rfe = RFE(model.clf, 10)
     fit = rfe.fit(X, y)
     model = RFClassifier(X=X.iloc[:, fit.support_], y=y)
@@ -133,15 +126,11 @@ if __name__ == "__main__":
     print(classification_report(y, _pred))
     print(confusion_matrix(y, _pred))
 
-    # X, y, product_name = get_fraud(sampling="None")
-    # _pred = model.predict(X=X)
-    # # datas = np.concatenate(
-    # #     [np.array(product_name).reshape(-1, 1), np.array(_pred).reshape(-1, 1)], axis=1
-    # # )
     df = pd.DataFrame({"Product Name": product_name, "Fraud": _pred})
     fraud_rate = (
         df.groupby(["Product Name"]).agg({"Fraud": lambda x: sum(x) / len(x)}).reset_index()
     )
+
     print(fraud_rate[fraud_rate["Fraud"] > 0.1].shape)
     print(fraud_rate[fraud_rate["Fraud"] > 0.11].shape)
     print(fraud_rate[fraud_rate["Fraud"] > 0.12].shape)
