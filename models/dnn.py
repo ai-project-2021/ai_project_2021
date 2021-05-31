@@ -190,17 +190,11 @@ class DNN_model:
 
 def save(model):
     model.dnn_model.save("./saved/dnn_model.h5")
-    # with open("./saved/dnn_model_class.pkl", "wb") as f:
-    #     dill.dump(model, f)
-
 
 def load_dnn_model(opt, loss_f, metrics):
     """모델 학습 결과 load
     dnn model의 학습 결과를 load하고, load해서 가져온 정보를 comile하고, evaluate을 통해 모델 평가까지 이루어집니다.
     """
-    # with open("./saved/dnn_model_class.pkl", "rb") as f:
-    #     model = dill.load(f)
-
     dnn_model = load_model("./saved/dnn_model.h5", custom_objects={"f1": f1})
 
     dnn_model.compile(
@@ -279,7 +273,7 @@ if __name__ == "__main__":
     X, y, _ = get_fraud(sampling="smote")
     n = DNN_model(X=X, y=y, load=True)
 
-    # n.train()
+    n.train()
 
     test_evaluate = n.eval_test()
     val_evaluate = n.eval_val()
