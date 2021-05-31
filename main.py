@@ -2,9 +2,7 @@ import os
 import argparse
 import numpy as np
 
-from sklearn.metrics import cluster
-
-from models import RFClassifier, KMeans, KMedian, KMedoid, Fuzzy
+from models import RFClassifier, KMeans, KMedian, KMedoid, FuzzyKMeans
 from models.recommend import Recommendation
 
 from utils.loader import get_rfm_data, get_order, order_filter
@@ -27,11 +25,11 @@ def input_user_id():
 
 
 def get_customer_cluster(clustering_model="KMeans", k=4):
-    model_dict = {"KMeans": KMeans, "KMedian": KMedian, "KMedoid": KMedoid, "Fuzzy": Fuzzy}
-    if os.path.exists(f"{clustering_model}_{k}.pkl"):
+    model_dict = {"KMeans": KMeans, "KMedian": KMedian, "KMedoid": KMedoid, "Fuzzy": FuzzyKMeans}
+    if os.path.exists(f"./saved/{clustering_model}_{k}.pkl"):
         return model_dict[clustering_model](k=k).labels_
     else:
-        print("Not Found Best Models")
+        print(f"Not Found {clustering_model} Models")
         print("Start Customer Clustering")
         rfm = get_rfm_data()
         return (
@@ -55,7 +53,7 @@ def get_order_dict(recommend_data):
 
 def customer_filtering(args):
     customer_id_list, _id, customer_idx_ = input_user_id()
-    labels_ = get_customer_cluster(clustering_model=args.c, k=args.k)
+    labels_ = get_customer_cluster(clustering_model=args.clustering, k=args.k)
     select_customer_list = customer_id_list[np.where(labels_ == labels_[customer_idx_])]
     return _id, select_customer_list
 
@@ -77,14 +75,14 @@ def product_recommend(_id, select_customer_list, fraud, n):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Product Recommendation for You")
     parser.add_argument(
-        "--clustering-models",
+        "--clustering",
         "-c",
         type=str,
         help="Select Clustering Models [KMeans, Kmedian, Kmedoid, Fuzzy]",
         default="KMeans",
     )
     parser.add_argument(
-        "--fraud-models",
+        "--fraud",
         "-f",
         type=str,
         help="Select Clustering Models [RF, DT, DNN]",
@@ -96,8 +94,8 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    assert args.c in ["KMeans", "KMedian", "Kmedoid", "Fuzzy"]
-    assert args.f in ["RF", "DT", "DNN"]
+    assert args.clustering in ["KMeans", "KMedian", "Kmedoid", "Fuzzy"]
+    assert args.fraud in ["RF", "DT", "DNN"]
 
     _id, select_customer_list = customer_filtering(args)
-    product_recommend(_id, select_customer_list, args.f, args.n)
+    product_recommend(_id, select_customer_list, args.fraud, args.max_best_k)

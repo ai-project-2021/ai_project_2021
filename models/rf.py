@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import json
+import dill
 
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import (
@@ -94,29 +95,24 @@ class RFClassifier:
             self.grid_clf.best_estimator_,
         )
 
-    def result(self):
-        _pred = self.predict(self.X_test)
+    def save(self):
+        with open("./saved/rf.pkl", "wb") as f:
+            dill.dump(self, f)
 
-        reversefactor = dict(zip(range(2), range(2)))
-        y_pred = np.vectorize(reversefactor.get)(_pred)
-        y_test = np.vectorize(reversefactor.get)(self.y_test)
 
-        cm = pd.crosstab(y_test, y_pred)
-        cm = pd.DataFrame(
-            confusion_matrix(self.y_test, _pred),
-        )
-
-        print(classification_report(self.y_test, _pred))
-        print(cm)
-        return f1_score(self.y_test, _pred, average="macro")
+def load_rf_model():
+    with open("./saved/rf.pkl", "rb") as f:
+        return dill.load(f)
 
 
 if __name__ == "__main__":
     X, y, product_name = get_fraud(sampling="smote")
     assert X.shape[0] == len(product_name)
 
-    model = RFClassifier(X=X, y=y)
-    print(model.train())
+    # model = RFClassifier(X=X, y=y)
+    # print(model.train())
+    # model.save()
+    model = load_rf_model()
 
     rfe = RFE(model.clf, 10)
     fit = rfe.fit(X, y)

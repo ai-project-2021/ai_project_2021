@@ -10,11 +10,11 @@ import pickle as pkl
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 
 from tensorflow import keras
-from keras import backend as K
-from keras.models import Sequential
-from keras.layers import Dense, Dropout, BatchNormalization
-from keras.models import load_model
-from keras.callbacks import EarlyStopping
+from tensorflow.keras import backend as K
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Dropout, BatchNormalization
+from tensorflow.keras.models import load_model
+from tensorflow.keras.callbacks import EarlyStopping
 
 from sklearn.model_selection import (
     train_test_split,

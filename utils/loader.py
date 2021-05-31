@@ -16,7 +16,7 @@ import datetime as dt
 from functools import reduce
 
 
-DEBUG = True
+DEBUG = False
 
 
 def rescaler(data, scaler=None):
