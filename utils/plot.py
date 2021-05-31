@@ -186,6 +186,10 @@ def clustering_plot_all(_path, X_range, inertia_matrix, silhouette_matrix, scale
         plt.plot(X_range, silhouette, color="blue", label=scaler)
         silhouette_max = max(silhouette)
         silhouette_min = min(silhouette)
+
+        if silhouette_max > 0.6 and silhouette_min < 0.6:
+            plt.axhline(y=0.6, color="gray", linestyle="--")
+
         for threshold in [0.3, 0.5, 0.7]:
             if silhouette_max > threshold and silhouette_min < threshold:
                 plt.axhline(y=threshold, color="red", linestyle="--")
