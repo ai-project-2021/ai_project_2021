@@ -5,7 +5,7 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 import pickle as pkl
-
+import dill
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 
@@ -68,6 +68,7 @@ class DNN_model:
             X (int): fraud 여부를 판단하는데 사용되는 feature 정보
             y (int): fraud 인지 아닌지에 대한 label 정보(1: 사기, 0: 사기 아님)
         """
+
         self.k_fold = StratifiedKFold(n_splits=5)
         self.get_data(X, y)
         self.n_in = self.X_train.shape[1]
@@ -95,8 +96,10 @@ class DNN_model:
         )
         self.loss_f = "binary_crossentropy"
         self.metrics = ["accuracy", f1, tf.keras.metrics.Precision(), tf.keras.metrics.Recall()]
-
-        self.dnn_model = self.create_model()
+        if load:
+            self.dnn_model = load_dnn_model(self.opt, self.loss_f, self.metrics)
+        else:
+            self.dnn_model = self.create_model()
 
     def get_data(self, X, y):
         """data scaling and split
@@ -185,28 +188,24 @@ class DNN_model:
         )
         return model
 
-    def save(self):
-        self.dnn_model.save("./saved/dnn_model.h5")
-        with open("./saved/dnn_model_class.pkl", "wb") as f:
-            pkl.dump(self, f)
+
+def save(model):
+    model.dnn_model.save("./saved/dnn_model.h5")
 
 
-def load_dnn_model():
+def load_dnn_model(opt, loss_f, metrics):
     """모델 학습 결과 load
     dnn model의 학습 결과를 load하고, load해서 가져온 정보를 comile하고, evaluate을 통해 모델 평가까지 이루어집니다.
     """
-    with open("./saved/dnn_model_class.pkl", "rb") as f:
-        model = pkl.load(f)
+    dnn_model = load_model("./saved/dnn_model.h5", custom_objects={"f1": f1})
 
-    model.dnn_model = load_model("./saved/dnn_model.h5", custom_objects={"f1": f1})
-
-    model.dnn_model.compile(
-        optimizer=model.opt,
-        loss=model.loss_f,
-        metrics=model.metrics,
+    dnn_model.compile(
+        optimizer=opt,
+        loss=loss_f,
+        metrics=metrics,
     )
 
-    return model
+    return dnn_model
 
 
 def loss_graph(hist):
@@ -244,17 +243,17 @@ def result_graph(hist):
 
 
 def show_load_model_result():
-    model = load_dnn_model()
-    X_test = model.X_test
-    y_test = model.y_test
-    X_val = model.X_val
-    y_val = model.y_val
-    n_hiddens = model.n_hiddens
+    n = DNN_model(X=X, y=y, load=True)
+    X_test = n.X_test
+    y_test = n.y_test
+    X_val = n.X_val
+    y_val = n.y_val
+    n_hiddens = n.n_hiddens
 
-    test_evaluate = model.evaluate(X_test, y_test)
-    val_evaluate = model.evaluate(X_val, y_val)
+    test_evaluate = n.model.evaluate(X_test, y_test)
+    val_evaluate = n.model.evaluate(X_val, y_val)
 
-    y_pred = model.predict(X_test).round()
+    y_pred = n.predict().round()
     cm = confusion_matrix(y_test, y_pred)
 
     print("test evaluate : ", test_evaluate)
@@ -273,15 +272,17 @@ def show_load_model_result():
 
 
 if __name__ == "__main__":
-    X, y = get_fraud(sampling="smote")
-    n = DNN_model(X=X, y=y, load=True)
+    X, y, _ = get_fraud(sampling="smote")
+    load = True
+    n = DNN_model(X=X, y=y, load=load)
 
-    n.train()
+    if not load:
+        n.train()
 
     test_evaluate = n.eval_test()
     val_evaluate = n.eval_val()
 
     print("accuracy for Test set is", test_evaluate)
     print("accuracy for Val set is", val_evaluate)
-
-    n.save()
+    if not load:
+        save(n)
