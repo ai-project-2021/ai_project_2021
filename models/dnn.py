@@ -5,7 +5,7 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 import pickle as pkl
-
+import dill
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 
@@ -68,6 +68,7 @@ class DNN_model:
             X (int): fraud 여부를 판단하는데 사용되는 feature 정보
             y (int): fraud 인지 아닌지에 대한 label 정보(1: 사기, 0: 사기 아님)
         """
+
         self.k_fold = StratifiedKFold(n_splits=5)
         self.get_data(X, y)
         self.n_in = self.X_train.shape[1]
@@ -95,8 +96,10 @@ class DNN_model:
         )
         self.loss_f = "binary_crossentropy"
         self.metrics = ["accuracy", f1, tf.keras.metrics.Precision(), tf.keras.metrics.Recall()]
-
-        self.dnn_model = self.create_model()
+        if load : 
+            self.dnn_model = load_dnn_model(self.opt, self.loss_f, self.metrics)
+        else : 
+            self.dnn_model = self.create_model()
 
     def get_data(self, X, y):
         """data scaling and split
@@ -185,28 +188,28 @@ class DNN_model:
         )
         return model
 
-    def save(self):
-        self.dnn_model.save("./saved/dnn_model.h5")
-        with open("./saved/dnn_model_class.pkl", "wb") as f:
-            pkl.dump(self, f)
+def save(model):
+    model.dnn_model.save("./saved/dnn_model.h5")
+    # with open("./saved/dnn_model_class.pkl", "wb") as f:
+    #     dill.dump(model, f)
 
 
-def load_dnn_model():
+def load_dnn_model(opt, loss_f, metrics):
     """모델 학습 결과 load
     dnn model의 학습 결과를 load하고, load해서 가져온 정보를 comile하고, evaluate을 통해 모델 평가까지 이루어집니다.
     """
-    with open("./saved/dnn_model_class.pkl", "rb") as f:
-        model = pkl.load(f)
+    # with open("./saved/dnn_model_class.pkl", "rb") as f:
+    #     model = dill.load(f)
 
-    model.dnn_model = load_model("./saved/dnn_model.h5", custom_objects={"f1": f1})
+    dnn_model = load_model("./saved/dnn_model.h5", custom_objects={"f1": f1})
 
-    model.dnn_model.compile(
-        optimizer=model.opt,
-        loss=model.loss_f,
-        metrics=model.metrics,
+    dnn_model.compile(
+        optimizer=opt,
+        loss=loss_f,
+        metrics=metrics,
     )
 
-    return model
+    return dnn_model
 
 
 def loss_graph(hist):
@@ -273,10 +276,10 @@ def show_load_model_result():
 
 
 if __name__ == "__main__":
-    X, y = get_fraud(sampling="smote")
+    X, y, _ = get_fraud(sampling="smote")
     n = DNN_model(X=X, y=y, load=True)
 
-    n.train()
+    # n.train()
 
     test_evaluate = n.eval_test()
     val_evaluate = n.eval_val()
@@ -284,4 +287,4 @@ if __name__ == "__main__":
     print("accuracy for Test set is", test_evaluate)
     print("accuracy for Val set is", val_evaluate)
 
-    n.save()
+    save(n)
