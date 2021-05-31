@@ -244,17 +244,17 @@ def result_graph(hist):
 
 
 def show_load_model_result():
-    model = load_dnn_model()
-    X_test = model.X_test
-    y_test = model.y_test
-    X_val = model.X_val
-    y_val = model.y_val
-    n_hiddens = model.n_hiddens
+    n = DNN_model(X=X, y=y, load=True)
+    X_test = n.X_test
+    y_test = n.y_test
+    X_val = n.X_val
+    y_val = n.y_val
+    n_hiddens = n.n_hiddens
 
-    test_evaluate = model.evaluate(X_test, y_test)
-    val_evaluate = model.evaluate(X_val, y_val)
+    test_evaluate = n.model.evaluate(X_test, y_test)
+    val_evaluate = n.model.evaluate(X_val, y_val)
 
-    y_pred = model.predict(X_test).round()
+    y_pred = n.predict().round()
     cm = confusion_matrix(y_test, y_pred)
 
     print("test evaluate : ", test_evaluate)
